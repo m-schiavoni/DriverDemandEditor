@@ -1,0 +1,458 @@
+# Max upload size in megabytes (editable if needed)
+max_upload_size_mb = 64
+
+################################################################################
+# Do NOT edit anything below this!
+
+library(shiny)
+library(shinydashboard)
+library(dplyr)
+library(DT)
+options(shiny.maxRequestSize = max_upload_size_mb * 1024^2)
+load('www/ideal.RData')
+source('www/dll.R')
+source('www/viz.R')
+
+################################################################################
+## SHINY UI
+################################################################################
+shinyApp(
+  ui = dashboardPage(
+    skin = 'red',
+    header = dashboardHeader(title="Driver Demand Editor"),
+    sidebar = dashboardSidebar(
+      sidebarMenu(
+        menuItem("Disclaimer", tabName = "Disclaimer", icon = icon("warning-sign", lib = "glyphicon")),
+        menuItem("Inputs", tabName = "Inputs", icon = icon("open", lib = "glyphicon")),
+        menuItem("Load vs Pedal", tabName = "Load-Pedal", icon = icon("chart-line")),
+        menuItem("Results", tabName = "Results", icon = icon("equalizer", lib="glyphicon")),
+        menuItem("Documentation", tabName = "Documentation", icon = icon("book"))
+      )
+    ),
+    body = dashboardBody(
+      tags$head(tags$style(HTML(".main-sidebar { font-size: 18px; }"))),
+      tabItems(
+        tabItem(tabName = "Disclaimer",
+                markdown('### >>> *This free tool is for educational purposes only.* <<<'),
+                markdown('#### By proceeding, you accept all responsibility for how you utilize it.'),
+                markdown('#### The app developer is not liable for any potential loss or damage resulting from its use or associated data logging.')
+        ),
+        tabItem(tabName = "Inputs",
+                box(
+                  fluidRow(
+                    column(5,
+                           fluidRow(
+                             column(7, fileInput('log_in', 'HP Tuners CSV logs (NOT interpolated)', accept='.csv', multiple=TRUE)),
+                             column(5, radioButtons('log_units', 'Log Speed Units',
+                                                    choices=c('KPH', 'MPH'), selected='MPH'))
+                           ),
+                           fluidRow(
+                             column(12, markdown('*Max upload size is **64 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
+                             column(12, markdown('*If your un-interpolated CSV exceeds this limit, you will need to delete some unnecessary columns from the file to reduce its size. This app only requires the first column plus the five parameters identified below.*'))
+                           )
+                    ),
+                    column(7,
+                           fluidRow(
+                             column(9, textAreaInput('dd_in', 'Paste Driver Demand table *with axes* here', width='100%', rows=8)),
+                             column(3, radioButtons('dd_units', 'DD Speed Units',
+                                           choices=c('KPH', 'MPH'), selected='KPH'))
+                           )
+                    ),
+                  ),
+                  h4("Data log column header labels:"),
+                  markdown("*Only edit if prompted below, in order to ensure proper reading of data.*"),
+                  fluidRow(
+                    column(3, uiOutput('gear_name')),
+                    column(3, uiOutput('rpm_name')),
+                    column(3, uiOutput('speed_name'))
+                  ),
+                  fluidRow(
+                    column(3, uiOutput('pedal_name')),
+                    column(3, uiOutput('load_name')),
+                    column(6, textOutput('data_checks'))
+                  ),
+                  width=12,
+                  collapsible=TRUE
+                ),
+                fluidRow(
+                  column(6,
+                         fluidRow(
+                           column(6, DTOutput('freq_table')),
+                           column(6, hr(), uiOutput('freq_msg'))
+                         ),
+                         hr(),
+                         plotOutput('gear_by_cell', height='600px')
+                  ),
+                  column(6, plotOutput('rpm_by_gear', height='1100px'))
+                )
+        ),
+        tabItem(tabName = "Load-Pedal",
+                fluidRow(
+                  column(3, h3("Select target profile:"),
+                         radioButtons('profile', 'Pedal profile',
+                                      choices = c('Extreme'='5',
+                                                  'Peppy'='4',
+                                                  'Default'='3',
+                                                  'Progressive'='2',
+                                                  'Linear'='1',
+                                                  'Custom'='Custom'),
+                                      selected = '3')),
+                  column(6, plotOutput('profile_plot', height='400px', width='400px'))
+                ),
+                hr(),
+                conditionalPanel("input.profile == 'Custom'",
+                                 fluidRow(
+                                   column(2, selectInput('custom_autofill', 'Auto-fill',
+                                                         choices = c('Extreme'='5',
+                                                                     'Peppy'='4',
+                                                                     'Default'='3',
+                                                                     'Progressive'='2',
+                                                                     'Linear'='1'),
+                                                         selected = '3')),
+                                   column(6, uiOutput('custom_input')),
+                                   column(2, textOutput('custom_msg')),
+                                   column(2, actionButton('apply_custom', 'Apply Changes',
+                                                          style="background-color: DodgerBlue; color: White; border-color: Black"))
+                                 )
+                ),
+                markdown('*Utilize your web browser\'s zoom functionality if this plot is too large or small for your screen.*'),
+                fluidRow(plotOutput('load_by_speed', height='1000px', width='1300px'))
+        ),
+        tabItem(tabName = 'Results',
+                fluidRow(
+                  column(6, sliderInput('decel_mult', 'Deceleration Multiplier',
+                                        min=1, max=1.4, value=1, step=0.05)),
+                  column(6, uiOutput('max_speed'))
+                ),
+                markdown('*For safety purposes, this app does NOT generate significant changes to negative-valued cells (aside from the deceleration multiplier functionality). If you want to change cells from negative to positive, you will need to do this offline manually. Also, this app will NOT increase your maximum torque value.*'),
+                DTOutput('table_out'),
+                markdown('#### <span style="color:blue">Click the \'CSV\' button directly above this to download results. Then paste into HP Tuners and fine-tune based on 1-D profile views.</span>'),
+                markdown(' '),
+                markdown('### 1-dimensional profile views'),
+                fluidRow(
+                  column(6, uiOutput('speed_slider')),
+                  column(6, uiOutput('pedal_slider'))
+                ),
+                fluidRow(
+                  column(6, plotOutput('speed_1d')),
+                  column(6, plotOutput('pedal_1d'))
+                )
+        ),
+        tabItem(tabName = "Documentation",
+                markdown('### Overview'),
+                markdown('#### Driver Demand Editor is applicable to Gen 5 GM vehicles and any others that use a two-dimensional table for drive-by-wire throttle mapping with these characteristics:'),
+                markdown('- rows indexed by accelerator pedal percent'),
+                markdown('- columns indexed by vehicle speed'),
+                markdown('- cell values representing torque requested'),
+                fluidRow(
+                  column(2, markdown('#### Example:')),
+                  column(10, tags$img(src = "dd.png", width="600"))
+                ),
+                markdown('#### This app generates Engine Load vs. Pedal Position curves from the logged data for each DD table column, and automatically calculates corrections by comparing these curves against a user-selectable ideal curve. Since this relies on load calculations, you should first make sure your MAF, VE, and torque model are in good shape.'),
+                markdown('### Data Logging'),
+                markdown('#### 1. Try to populate as much of the DD pedal-speed matrix as possible by varying not only pedal position and vehicle speed, but also transmission gear and engine RPM.'),
+                markdown('#### 2. Ideally, try to limit the drive to mostly flat roads (driving uphill skews engine load high, and driving downhill skews engine load low).'),
+                markdown('#### 3. This app automatically filters the log to only include observations with increasing accelerator pedal position, so cruising at steady state for extended periods is not beneficial.'),
+                markdown("#### After logging, from within VCM Scanner click 'Log File' > 'Export Log File', then export entire log as CSV, and **disable interpolation of data gaps**. This is the file format you must upload to this app."),
+                markdown('### Required Parameters'),
+                markdown('#### The log file MUST include these columns:'),
+                markdown('- Transmission Current Gear'),
+                markdown('- Engine RPM'),
+                markdown('- Vehicle Speed'),
+                markdown('- Calculated Engine Load [the one that maxes out around 100. If your ECU doesn\'t return correct values for this PID, instead try "Absolute Load (SAE)" as a backup.]'),
+                markdown('- Accelerator Pedal Position [preferably one that returns values in the full range from 0 to 100. If your ECU doesn\'t offer such a PID, instead try "Accelerator Position D (SAE)" as a backup.]'),
+                markdown('### Video Walk-Through'),
+                markdown('#### [YouTube link to be provided]'),
+                markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
+                markdown('#### [HPTuners forum link to be provided]'),
+                markdown('#### *App last updated 16-Jan-2024*')
+        )
+      )
+    )
+  ),
+
+################################################################################
+## SHINY SERVER
+################################################################################
+  server = function(input, output, session) {
+    # closing window also terminates app gracefully
+    session$onSessionEnded(function(){stopApp()})
+    
+    # load dd table
+    dd_df <- reactive({
+      validate(need(input$dd_in!="", 'Paste DD table with axes'))
+      dd_df = read.delim(text=input$dd_in, header=FALSE)
+      if (dd_df[nrow(dd_df),1] == '%') dd_df = dd_df[1:(nrow(dd_df)-1),]
+      if (is.na(dd_df[1,ncol(dd_df)])) dd_df = dd_df[,1:(ncol(dd_df)-1)]
+      validate(need(min(dim(dd_df))>=14, 'DD table read error'))
+      return(dd_df)
+    })
+    pedal_bins <- reactive({as.numeric(dd_df()[-1,1])})
+    n_pedal <- reactive({length(pedal_bins())})
+    speed_bins <- reactive({as.numeric(dd_df()[1,-1])})
+    n_speed <- reactive({length(speed_bins())})
+    pedal_breaks <- reactive({c(0, pedal_bins()[1:n_pedal()-1] + diff(pedal_bins())/2, pedal_bins()[n_pedal()])})
+    speed_breaks <- reactive({c(0, speed_bins()[1:n_speed()-1] + diff(speed_bins())/2, speed_bins()[n_speed()])})
+    
+    # create dd_mat object
+    dd_mat <- reactive({
+      dd_mat = as.matrix(dd_df()[2:(n_pedal()+1), 2:(n_speed()+1)])
+      rownames(dd_mat) = paste0('p_', pedal_bins())
+      colnames(dd_mat) = paste0('s_', speed_bins())
+      return(dd_mat)
+    })
+    
+    # auto-populate column header labels
+    output$gear_name <- renderUI({textInput('gear_name', 'Transmission Gear', 'Trans Current Gear')})
+    output$rpm_name <- renderUI({textInput('rpm_name', 'Engine Speed (RPM)', 'Engine RPM')})
+    output$speed_name <- renderUI({textInput('speed_name', 'Vehicle Speed', 'Vehicle Speed')})
+    output$pedal_name <- renderUI({textInput('pedal_name', 'Pedal % [0-100]', 'Accelerator Pedal Position')})
+    output$load_name <- renderUI({textInput('load_name', 'Engine Load [0-100]', 'Calculated Engine Load')})
+    
+    # load data log(s)
+    num_files <- reactive({
+      validate(need(!is.null(input$log_in), 'Upload data log'))
+      return(nrow(input$log_in))
+    })
+    log_list <- reactive({
+      validate(need(num_files() > 0, 'Upload data log'))
+      log_list = list()
+      for (i in 1:num_files()) {
+        df = read.csv(input$log_in[[i,'datapath']], header=FALSE, skip=14, quote="")
+        colnames(df) = df[2,] %>%
+          gsub(pattern=' ', replacement='.', fixed=TRUE) %>%
+          gsub(pattern='(', replacement='.', fixed=TRUE) %>%
+          gsub(pattern=')', replacement='.', fixed=TRUE) %>%
+          gsub(pattern='%', replacement='.', fixed=TRUE)
+        log_list[[i]] = df[-(1:4),]
+      }
+      return(log_list)
+    })
+    
+    log_df_0 <- reactive({
+      col_names = c(input$gear_name, input$rpm_name, input$speed_name,
+                    input$pedal_name, input$load_name) %>%
+        gsub(pattern=' ', replacement='.', fixed=TRUE) %>%
+        gsub(pattern='(', replacement='.', fixed=TRUE) %>%
+        gsub(pattern=')', replacement='.', fixed=TRUE) %>%
+        gsub(pattern='%', replacement='.', fixed=TRUE)
+      
+      # automatically append " (SAE)" to column names, if necessary
+      for (i in 1:length(col_names)) {
+        s = col_names[i]
+        alt = paste0(s,'..SAE.')
+        if ((alt %in% colnames(log_list()[[1]])) & !(s %in% colnames(log_list()[[1]]))) col_names[i] = alt
+      }
+      
+      # prompt if a column label is not found
+      for (s in col_names) {
+        validate(need(s %in% colnames(log_list()[[1]]) == 1,
+                      paste0('Incorrect column header label ["',s,'" not found].')))
+      }
+      
+      # extract only columns we need, and rename them for simplicity
+      data_list = list()
+      for (i in 1:length(log_list())) {
+        data_list[[i]] = log_list()[[i]][c('Offset', col_names)]
+        colnames(data_list[[i]]) = c('time', 'gear', 'rpm', 'speed', 'pedal', 'load')
+      }
+      df = do.call('rbind', data_list)
+      
+      # convert columns from strings to numbers
+      df = suppressWarnings(as.data.frame(apply(df, 2, as.numeric)))
+      
+      # drop rows in which our columns of interest are all blank
+      df = df[!(is.na(df$gear) & is.na(df$rpm) & is.na(df$speed) & is.na(df$pedal) & is.na(df$load)),]
+    })
+    
+    # determine logged frequency of pedal and load
+    freqs <- reactive({calc_freqs(log_df_0())})
+    output$freq_table <- renderDT(datatable(freqs(),
+                                            options = list(dom='tB', ordering=FALSE, pageLength=2)) %>%
+                                            formatRound(columns=1, digits=1))
+    output$freq_msg <- renderUI({
+      if (anyNA(freqs())) {
+        markdown("*Unable to determine logged frequency because data gaps have been interpolated.*")
+      } else {
+        markdown("*To increase logged frequency, adjust the Polling Interval in VCM Scanner, and/or reduce the total number of logged parameters.*")
+      }
+    })
+    
+    output$data_checks <- renderPrint({
+      msg = ''
+      max_load = max(log_df_0()$load, na.rm=TRUE)
+      if (max_load > 100) {
+        msg = paste0(msg, 'WARNING: Load exceeds 100; values will be re-scaled. ')
+      } else if (max_load < 50) {
+        msg = paste0(msg, 'WARNING: Load never exceeds 50; data collection might be insufficient. ')
+      }
+      
+      min_pedal = min(log_df_0()$pedal, na.rm=TRUE)
+      if (min_pedal > 6) msg = paste0(msg, 'WARNING: min(Pedal) > 0; values will be re-scaled. ')
+      
+      gear_range = range(log_df_0()$gear, na.rm=TRUE)
+      if ((gear_range[2] > 10) | (gear_range[1] < 1)) {
+        msg = paste0(msg, 'WARNING: Trans Gear data out of range; values will be re-scaled. ')
+      }
+      
+      if (msg == '') msg = 'Data checks passed.'
+      
+      return(noquote(msg))
+    })
+    
+    log_df <- reactive({
+      validate(need(min(log_df_0()$load, na.rm=TRUE) >= 0,
+                    'ERROR: Negative load values detected. Check accuracy of CSV export, and/or enter different column header label.'))
+      validate(need(min(log_df_0()$pedal, na.rm=TRUE) >= 0,
+                    'ERROR: Negative pedal values detected. Check accuracy of CSV export, and/or enter different column header label.'))
+      validate(need(max(log_df_0()$pedal, na.rm=TRUE) <= 100,
+                    'ERROR: Pedal values exceed 100. Check accuracy of CSV export, and/or enter different column header label.'))
+      
+      # interpolate gaps, scale values, and filter data
+      df = interp_scale_filter(log_df_0(), input$log_units)
+      validate(need(nrow(df) > 0,
+                    'ERROR: Zero rows extracted. Most likely cause is faulty pedal data.'))
+      
+      # create pedal & speed bins and gear weights
+      df = calc_bins_and_weights(df, input$log_units, input$dd_units, pedal_breaks(), speed_bins())
+    })
+    
+    # number of gears
+    n_gear <- reactive({max(log_df()$gear)})
+    
+    # calculate avg gear and load by DD cell
+    avg_by_dd_cell <- reactive({calc_avgs_by_dd_cell(log_df(),n_pedal(),n_speed(),pedal_bins(),speed_bins())})
+    
+    # plot RPM vs. Pedal by gear
+    output$rpm_by_gear <- renderPlot({plot_rpm_vs_pedal(log_df())})
+    
+    # plot Avg. Gear by DD Cell
+    output$gear_by_cell <- renderPlot({
+      plot_avg_gear_by_cell(avg_by_dd_cell(), n_gear(), n_speed(), n_pedal(),
+                            speed_bins(), pedal_bins(), input$dd_units)
+    })
+    
+    # create target profile dataframe and vector, scaled to minimum logged load
+    profile_df <- reactive({
+      df = ideal[which(ideal$x %in% pedal_bins()),]
+      min_load = min(avg_by_dd_cell()$load, na.rm=TRUE)
+      df[,1:5] = df[,1:5]*(100-min_load)/100 + min_load
+      df[,1:5] = round(df[,1:5], 2)
+      return(df)
+    })
+    profile_vec <- reactive({
+      if (input$profile == 'Custom') {
+        if (input$apply_custom > 0) {
+          profile_vec = custom_profile()
+        } else {
+          profile_vec = 0
+        }
+      } else {
+        i = as.integer(input$profile)
+        profile_vec = profile_df()[,i]
+      }
+    })
+    
+    # process custom profile input
+    output$custom_input <- renderUI({
+      i = as.integer(input$custom_autofill)
+      textAreaInput('custom_input', '1) Select auto-fill.  2) Edit values.  3) Click \'Apply Changes\' if checks pass.',
+                    value=paste(round(profile_df()[,i],1), collapse="  "), width='100%', rows=1)
+    })
+    custom_realtime <- reactive({
+      as.numeric(read.delim(text=gsub(',','',input$custom_input), sep='', header=FALSE))
+    })
+    output$custom_msg <- renderPrint({
+      if (is.null(custom_realtime())) {
+        noquote('ERROR: no input detected')
+      } else {
+        len = length(custom_realtime())
+        if (len != n_pedal()) {
+          noquote(paste('ERROR:',len,'values detected but', n_pedal(), 'required'))
+        } else if (!min(custom_realtime() == sort(custom_realtime()))) {
+          noquote('ERROR: values must be increasing')
+        } else {
+          noquote('Checks passed; proceed')
+        }
+      }
+    })
+    custom_profile <- eventReactive(input$apply_custom, {custom_realtime()}, ignoreNULL=FALSE)
+    
+    # create target profile matrix
+    target_mat <- reactive({
+      target_mat = matrix(data=rep(profile_vec(), times=n_speed()), nrow=n_pedal(), ncol=n_speed())
+      target_mat = round(target_mat, 2)
+      rownames(target_mat) = paste0('p_', pedal_bins())
+      colnames(target_mat) = paste0('s_', speed_bins())
+      return(target_mat)
+    })
+    
+    # plot target profiles
+    output$profile_plot <- renderPlot({profile_plot(pedal_bins(), profile_df(), profile_vec())})
+    
+    # plot Load vs. Pedal by Speed
+    output$load_by_speed <- renderPlot({
+      plot_load_by_speed(log_df(), avg_by_dd_cell(), target_mat(), speed_breaks(),
+                         speed_bins(), pedal_bins(), n_gear(), input$dd_units)
+    })
+    
+    # normalize logged load
+    load_mod <- reactive({normalize_load(avg_by_dd_cell(), n_speed(), n_pedal())})
+    
+    # calculate new raw DD table
+    dd_out <- reactive({calc_new_dd(dd_mat(), target_mat(), load_mod(), n_pedal(), n_speed())})
+    
+    # smooth new DD table
+    dd_out_smooth <- reactive({smooth_dd(dd_out(), n_speed())})
+    
+    # create max speed dropdown
+    output$max_speed <- renderUI({
+      selectInput('max_speed', 'Max speed to copy to the right',
+                  choices=speed_bins(), selected=speed_bins()[n_speed()])
+    })
+    
+    # scale negatives and round to one decimal point
+    dd_out_final <- reactive({
+      validate(need(!is.null(input$max_speed), 'Identifying speed bins'))
+      finalize_dd(dd_out_smooth(), input$decel_mult, input$max_speed, pedal_bins(), speed_bins())
+    })
+    
+    # calculate range of output DD table
+    range_out <- reactive({range(dd_out_final())})
+    
+    # pedal and speed bin slider inputs
+    output$pedal_slider <- renderUI({
+      sliderInput('pedal_slider', 'Pedal bin index (rows)', min=1, max=n_pedal(), value=1, step=1)
+    })
+    output$speed_slider <- renderUI({
+      sliderInput('speed_slider', 'Speed bin index (columns)', min=1, max=n_speed(), value=1, step=1)
+    })
+    
+    # one-dimensional plots by pedal and speed
+    output$pedal_1d <- renderPlot({
+      plot_pedal_1d(dd_out_final(), input$pedal_slider,
+                    pedal_bins(), speed_bins(), input$dd_units)
+    })
+    output$speed_1d <- renderPlot({
+      plot_speed_1d(dd_out_final(), input$speed_slider,
+                    speed_bins(), pedal_bins(), input$dd_units)
+    })
+    
+    output$table_out = renderDT(
+      datatable(dd_out_final(), extensions = 'Buttons',
+                options = list(dom='tB', ordering=FALSE, pageLength=n_pedal(), buttons='csv')) %>%
+        formatRound(columns=1:n_speed(), digits=1) %>%
+        formatStyle(columns=1:n_speed(),
+                    backgroundColor=styleInterval(seq(range_out()[1], range_out()[2], length.out=110),
+                                                  colorRampPalette(c('red4','red','orange','yellow2','white',
+                                                                     'green2','turquoise2','dodgerblue',
+                                                                     'blue','purple2','purple2','magenta2'))(111)))
+    )
+    
+    # Channels.xml file exporter
+    output$channels <- downloadHandler(filename = "DriverDemand.Channels.xml",
+                                       content = function(file){write.table(channels, file, quote=FALSE,
+                                                                            row.names=FALSE, col.names=FALSE)}
+    )
+  }
+)
