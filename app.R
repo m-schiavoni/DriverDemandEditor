@@ -1,5 +1,14 @@
-# Max upload size in megabytes (editable if needed)
+# Max upload size in megabytes
 max_upload_size_mb = 64
+
+# Parameter IDs to search for in CSV log to extract required data
+pids = list(
+  gear = c(4120, 14100),
+  rpm = c(12, 2135),
+  speed = c(13),
+  pedal = c(2114, 2115, 2116, 2117, 73, 74),
+  load = c(4, 67)
+)
 
 ################################################################################
 # Do NOT edit anything below this!
@@ -48,35 +57,23 @@ shinyApp(
                            ),
                            fluidRow(
                              column(12, markdown('*Max upload size is **64 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
-                             column(12, markdown('*If your un-interpolated CSV exceeds this limit, you will need to delete some unnecessary columns from the file to reduce its size. This app only requires the first column plus the five parameters identified below.*'))
+                             column(12, markdown('*If you still have problems, delete some unnecessary columns from the file to reduce its size. Required columns are listed in the Documentation tab.*'))
                            )
                     ),
                     column(7,
                            fluidRow(
-                             column(9, textAreaInput('dd_in', 'Paste Driver Demand table *with axes* here', width='100%', rows=8)),
+                             column(9, textAreaInput('dd_in', 'Paste Driver Demand table *with axes* here', width='100%', rows=7)),
                              column(3, radioButtons('dd_units', 'DD Speed Units',
                                            choices=c('KPH', 'MPH'), selected='KPH'))
                            )
                     ),
                   ),
-                  h4("Data log column header labels:"),
-                  markdown("*Only edit if prompted below, in order to ensure proper reading of data.*"),
-                  fluidRow(
-                    column(3, uiOutput('gear_name')),
-                    column(3, uiOutput('rpm_name')),
-                    column(3, uiOutput('speed_name'))
-                  ),
-                  fluidRow(
-                    column(3, uiOutput('pedal_name')),
-                    column(3, uiOutput('load_name')),
-                    column(6, textOutput('data_checks'))
-                  ),
-                  width=12,
-                  collapsible=TRUE
+                  width=12
                 ),
                 fluidRow(
                   column(6,
                          fluidRow(
+                           textOutput('data_checks'),
                            column(6, DTOutput('freq_table')),
                            column(6, hr(), uiOutput('freq_msg'))
                          ),
@@ -140,7 +137,7 @@ shinyApp(
         ),
         tabItem(tabName = "Documentation",
                 markdown('### Overview'),
-                markdown('#### Driver Demand Editor is applicable to Gen 5 GM vehicles and any others that use a two-dimensional table for drive-by-wire throttle mapping with these characteristics:'),
+                markdown('#### Driver Demand Editor is applicable to Gen 5 GM vehicles that use a two-dimensional table for drive-by-wire throttle mapping with these characteristics:'),
                 markdown('- rows indexed by accelerator pedal percent'),
                 markdown('- columns indexed by vehicle speed'),
                 markdown('- cell values representing torque requested'),
@@ -155,17 +152,18 @@ shinyApp(
                 markdown('#### 3. This app automatically filters the log to only include observations with increasing accelerator pedal position, so cruising at steady state for extended periods is not beneficial.'),
                 markdown("#### After logging, from within VCM Scanner click 'Log File' > 'Export Log File', then export entire log as CSV, and **disable interpolation of data gaps**. This is the file format you must upload to this app."),
                 markdown('### Required Parameters'),
-                markdown('#### The log file MUST include these columns:'),
-                markdown('- Transmission Current Gear'),
-                markdown('- Engine RPM'),
-                markdown('- Vehicle Speed'),
-                markdown('- Calculated Engine Load [the one that maxes out around 100. If your ECU doesn\'t return correct values for this PID, instead try "Absolute Load (SAE)" as a backup.]'),
-                markdown('- Accelerator Pedal Position [preferably one that returns values in the full range from 0 to 100. If your ECU doesn\'t offer such a PID, instead try "Accelerator Position D (SAE)" as a backup.]'),
+                markdown('#### The log file MUST include these six columns:'),
+                markdown('- Offset (time)'),
+                markdown('- Vehicle Speed [13]'),
+                markdown('- Engine RPM [12 or 2135]'),
+                markdown('- Transmission Current Gear [4120 or 14100]'),
+                markdown('- Calculated Engine Load [4]  *(but will also accept Absolute Load [67])*'),
+                markdown('- Accelerator Pedal Position [2114]  *(but will also accept 2115, 2116, 2117, 73, or 74)*'),
                 markdown('### Video Walk-Through'),
                 markdown('#### [YouTube link to be provided]'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### [HPTuners forum link to be provided]'),
-                markdown('#### *App last updated 16-Jan-2024*')
+                markdown('#### *App last updated 21-Jan-2024*')
         )
       )
     )
@@ -202,13 +200,6 @@ shinyApp(
       return(dd_mat)
     })
     
-    # auto-populate column header labels
-    output$gear_name <- renderUI({textInput('gear_name', 'Transmission Gear', 'Trans Current Gear')})
-    output$rpm_name <- renderUI({textInput('rpm_name', 'Engine Speed (RPM)', 'Engine RPM')})
-    output$speed_name <- renderUI({textInput('speed_name', 'Vehicle Speed', 'Vehicle Speed')})
-    output$pedal_name <- renderUI({textInput('pedal_name', 'Pedal % [0-100]', 'Accelerator Pedal Position')})
-    output$load_name <- renderUI({textInput('load_name', 'Engine Load [0-100]', 'Calculated Engine Load')})
-    
     # load data log(s)
     num_files <- reactive({
       validate(need(!is.null(input$log_in), 'Upload data log'))
@@ -219,42 +210,26 @@ shinyApp(
       log_list = list()
       for (i in 1:num_files()) {
         df = read.csv(input$log_in[[i,'datapath']], header=FALSE, skip=14, quote="")
-        colnames(df) = df[2,] %>%
-          gsub(pattern=' ', replacement='.', fixed=TRUE) %>%
-          gsub(pattern='(', replacement='.', fixed=TRUE) %>%
-          gsub(pattern=')', replacement='.', fixed=TRUE) %>%
-          gsub(pattern='%', replacement='.', fixed=TRUE)
-        log_list[[i]] = df[-(1:4),]
+        log_list[[i]] = df[-(2:5),]
       }
       return(log_list)
     })
     
     log_df_0 <- reactive({
-      col_names = c(input$gear_name, input$rpm_name, input$speed_name,
-                    input$pedal_name, input$load_name) %>%
-        gsub(pattern=' ', replacement='.', fixed=TRUE) %>%
-        gsub(pattern='(', replacement='.', fixed=TRUE) %>%
-        gsub(pattern=')', replacement='.', fixed=TRUE) %>%
-        gsub(pattern='%', replacement='.', fixed=TRUE)
       
-      # automatically append " (SAE)" to column names, if necessary
-      for (i in 1:length(col_names)) {
-        s = col_names[i]
-        alt = paste0(s,'..SAE.')
-        if ((alt %in% colnames(log_list()[[1]])) & !(s %in% colnames(log_list()[[1]]))) col_names[i] = alt
-      }
-      
-      # prompt if a column label is not found
-      for (s in col_names) {
-        validate(need(s %in% colnames(log_list()[[1]]) == 1,
-                      paste0('Incorrect column header label ["',s,'" not found].')))
+      # identify column indices we need
+      pid_indices = vector('numeric', length(pids))
+      for (i in 1:length(pids)) {
+        pid_indices[i] = na.omit(match(pids[[i]], log_list()[[1]][1,]))[1]
+        validate(need(!is.na(pid_indices[i]),
+                      paste0('ERROR: no ', names(pids)[i], ' pids detected [', pids[i], ']')))
       }
       
       # extract only columns we need, and rename them for simplicity
       data_list = list()
       for (i in 1:length(log_list())) {
-        data_list[[i]] = log_list()[[i]][c('Offset', col_names)]
-        colnames(data_list[[i]]) = c('time', 'gear', 'rpm', 'speed', 'pedal', 'load')
+        data_list[[i]] = log_list()[[i]][-1, c(1, pid_indices)]
+        colnames(data_list[[i]]) = c('time', names(pids))
       }
       df = do.call('rbind', data_list)
       
@@ -268,7 +243,7 @@ shinyApp(
     # determine logged frequency of pedal and load
     freqs <- reactive({calc_freqs(log_df_0())})
     output$freq_table <- renderDT(datatable(freqs(),
-                                            options = list(dom='tB', ordering=FALSE, pageLength=2)) %>%
+                                            options = list(dom='tB', ordering=FALSE, pageLength=2, buttons=FALSE)) %>%
                                             formatRound(columns=1, digits=1))
     output$freq_msg <- renderUI({
       if (anyNA(freqs())) {
@@ -290,23 +265,22 @@ shinyApp(
       min_pedal = min(log_df_0()$pedal, na.rm=TRUE)
       if (min_pedal > 6) msg = paste0(msg, 'WARNING: min(Pedal) > 0; values will be re-scaled. ')
       
-      gear_range = range(log_df_0()$gear, na.rm=TRUE)
-      if ((gear_range[2] > 10) | (gear_range[1] < 1)) {
-        msg = paste0(msg, 'WARNING: Trans Gear data out of range; values will be re-scaled. ')
-      }
-      
-      if (msg == '') msg = 'Data checks passed.'
+      if (msg == '') msg = 'Supplementary data checks passed.'
       
       return(noquote(msg))
     })
     
     log_df <- reactive({
       validate(need(min(log_df_0()$load, na.rm=TRUE) >= 0,
-                    'ERROR: Negative load values detected. Check accuracy of CSV export, and/or enter different column header label.'))
+                    'ERROR: Negative load values detected. Check accuracy of CSV export.'))
       validate(need(min(log_df_0()$pedal, na.rm=TRUE) >= 0,
-                    'ERROR: Negative pedal values detected. Check accuracy of CSV export, and/or enter different column header label.'))
+                    'ERROR: Negative pedal values detected. Check accuracy of CSV export.'))
       validate(need(max(log_df_0()$pedal, na.rm=TRUE) <= 100,
-                    'ERROR: Pedal values exceed 100. Check accuracy of CSV export, and/or enter different column header label.'))
+                    'ERROR: Pedal values exceed 100. Check accuracy of CSV export.'))
+      validate(need(max(log_df_0()$gear, na.rm=TRUE) <= 10,
+                    'ERROR: Transmission gear values exceed 10. Check accuracy of CSV export.'))
+      validate(need(min(log_df_0()$gear, na.rm=TRUE) >= 1,
+                    'ERROR: Transmission gear values outside range. Check accuracy of CSV export.'))
       
       # interpolate gaps, scale values, and filter data
       df = interp_scale_filter(log_df_0(), input$log_units)
