@@ -34,24 +34,15 @@ interp_scale_filter <- function(df, log_units) {
   for (j in 2:ncol(df)) {
     if (anyNA(df[,j])) {
       ii = which(!is.na(df[,j]))
-      df[,j] = approx(x=df$time[ii], y=df[ii,j], xout=df$time, method='linear',
-                      rule=2, ties=list("ordered", mean))$y
+      df[,j] = approx(x=df$time[ii], y=df[ii,j], xout=df$time,
+                      method='linear', rule=2, ties=list("ordered", mean))$y
     }
   }
-  
-  # scale gear if values out of range
-  if ((max(df$gear) > 10) | (min(df$gear) < 1)) {
-    remove_outliers = FALSE
-    df$gear = df$gear - min(df$gear) + 1
-  } else {
-    remove_outliers = TRUE
-  }
-  df$gear = round(df$gear)
   
   # scale load if greater than 100
   if (max(df$load) > 100) df$load = df$load*100/max(df$load)
   
-  # scale pedal if necessary
+  # scale pedal if min greater than 0
   min_pedal = min(df$pedal)
   max_pedal = max(df$pedal)
   if (min_pedal > 16) {  # 20 - 85
@@ -76,15 +67,6 @@ interp_scale_filter <- function(df, log_units) {
     df = df[df$speed > 5,]
   }
   
-  # remove extreme outlying RPMs by gear
-  if (remove_outliers) {
-    df = df %>% group_by(gear) %>%
-      mutate(iqr=IQR(rpm), q1=quantile(rpm, 0.25), q3=quantile(rpm, 0.75))
-    iqr_mult = 2
-    df$outlier = (df$rpm < (df$q1 - iqr_mult*df$iqr)) | (df$rpm > (df$q3 + iqr_mult*df$iqr))
-    df = df[!df$outlier, c('time', 'gear', 'rpm', 'speed', 'pedal', 'load')]
-  }
-  
   # down-sample to reduce memory usage
   nr = nrow(df)
   if (nr > 40000) {
@@ -102,6 +84,14 @@ interp_scale_filter <- function(df, log_units) {
   } else if (nr > 10000) {
     df = df[seq(1,nr,2),]
   }
+  
+  # remove extreme outlying RPMs by gear
+  df$gear = round(df$gear)
+  df = df %>% group_by(gear) %>%
+    mutate(iqr=IQR(rpm), q1=quantile(rpm, 0.25), q3=quantile(rpm, 0.75))
+  iqr_mult = 2
+  df$outlier = (df$rpm < (df$q1 - iqr_mult*df$iqr)) | (df$rpm > (df$q3 + iqr_mult*df$iqr))
+  df = df[!df$outlier, c('time', 'gear', 'rpm', 'speed', 'pedal', 'load')]
   
   return(df)
 }
@@ -223,8 +213,9 @@ calc_new_dd <- function(dd_mat, target_mat, load_mod, n_pedal, n_speed){
   nas = which(is.na(dd_out))
   dd_out[nas] = dd_mat[nas]
   
-  # reset negatives
-  negs = which(dd_mat < 0)
+  # reset first cell and negatives
+  dd_out[1,1] = dd_mat[1,1]
+  negs = which(dd_mat <= 0)
   dd_out[negs] = dd_mat[negs]
   
   # ensure max torque is not exceeded
@@ -252,8 +243,8 @@ smooth_dd <- function(dd_out, n_speed){
   dd_out_smooth[,1] = (dd_out_smooth[,1] + 2*dd_out_smooth[,2] - dd_out_smooth[,3])/2
   dd_out_smooth[,n_speed] = (dd_out_smooth[,n_speed] + 2*dd_out_smooth[,n_speed-1] - dd_out_smooth[,n_speed-2])/2
   
-  # don't smooth upper-left-most quadrant
-  dd_out_smooth[1:3,1:3] = dd_out[1:3,1:3]
+  # don't smooth first cell
+  dd_out_smooth[1,1] = dd_out[1,1]
   
   # ensure all columns are increasing
   dd_out_smooth = apply(dd_out_smooth, 2, sort)
