@@ -231,7 +231,7 @@ calc_new_dd <- function(dd_mat, target_mat, load_mod, n_pedal, n_speed){
   return(dd_out)
 }
 
-smooth_dd <- function(dd_out, n_speed){
+smooth_dd <- function(dd_out, n_pedal, n_speed){
   # smooth horizontally
   dd_out_smooth = t(apply(dd_out, 1, stats::filter, filter=c(0.5,1,2,1,0.5)/5))
   dd_out_smooth[,1] = dd_out[,1]
