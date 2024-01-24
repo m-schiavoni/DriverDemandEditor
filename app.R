@@ -162,7 +162,7 @@ shinyApp(
                 markdown('### Video Walk-Through'),
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
-                markdown('#### [HPTuners forum link to be provided]'),
+                markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
                 markdown('#### *App last updated 23-Jan-2024*')
         )
       )
