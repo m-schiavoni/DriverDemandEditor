@@ -1,5 +1,5 @@
 # Max upload size in megabytes
-max_upload_size_mb = 200
+max_upload_size_mb = 64
 
 # Parameter IDs to search for in CSV log to extract required data
 pids = list(
@@ -18,7 +18,7 @@ library(shinydashboard)
 library(dplyr)
 library(DT)
 options(shiny.maxRequestSize = max_upload_size_mb * 1024^2)
-load('www/ideal.RData')
+load('ideal.RData')
 source('www/dll.R')
 source('www/viz.R')
 
@@ -56,7 +56,7 @@ shinyApp(
                                                     choices=c('KPH', 'MPH'), selected='MPH'))
                            ),
                            fluidRow(
-                             column(12, markdown('*Max upload size is **200 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
+                             column(12, markdown('*Max upload size is **64 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
                              column(12, markdown('*If you still have problems, delete some unnecessary columns from the file to reduce its size. Required columns are listed in the Documentation tab.*'))
                            )
                     ),
@@ -160,10 +160,10 @@ shinyApp(
                 markdown('- Calculated Engine Load [4]  *(but will also accept Absolute Load [67])*'),
                 markdown('- Accelerator Pedal Position [2114]  *(but will also accept 2115, 2116, 2117, 73, or 74)*'),
                 markdown('### Video Walk-Through'),
-                markdown('#### [YouTube link to be provided]'),
+                markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### [HPTuners forum link to be provided]'),
-                markdown('#### *App last updated 21-Jan-2024*')
+                markdown('#### *App last updated 23-Jan-2024*')
         )
       )
     )
@@ -377,7 +377,7 @@ shinyApp(
     dd_out <- reactive({calc_new_dd(dd_mat(), target_mat(), load_mod(), n_pedal(), n_speed())})
     
     # smooth new DD table
-    dd_out_smooth <- reactive({smooth_dd(dd_out(), n_speed())})
+    dd_out_smooth <- reactive({smooth_dd(dd_out(), n_pedal(), n_speed())})
     
     # create max speed dropdown
     output$max_speed <- renderUI({
