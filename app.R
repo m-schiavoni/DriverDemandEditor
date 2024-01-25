@@ -1,5 +1,5 @@
 # Max upload size in megabytes
-max_upload_size_mb = 200
+max_upload_size_mb = 64
 
 # Parameter IDs to search for in CSV log to extract required data
 pids = list(
@@ -56,7 +56,7 @@ shinyApp(
                                                     choices=c('KPH', 'MPH'), selected='MPH'))
                            ),
                            fluidRow(
-                             column(12, markdown('*Max upload size is **200 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
+                             column(12, markdown('*Max upload size is **64 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
                              column(12, markdown('*If you still have problems, delete some unnecessary columns from the file to reduce its size. Required columns are listed in the Documentation tab.*'))
                            )
                     ),
@@ -152,8 +152,7 @@ shinyApp(
                 markdown('#### 3. This app automatically filters the log to only include observations with increasing accelerator pedal position, so cruising at steady state for extended periods is not beneficial.'),
                 markdown("#### After logging, from within VCM Scanner click 'Log File' > 'Export Log File', then export entire log as CSV, and **disable interpolation of data gaps**. This is the file format you must upload to this app."),
                 markdown('### Required Parameters'),
-                markdown('#### The log file MUST include these six columns:'),
-                markdown('- Offset (time)'),
+                markdown('#### The log file MUST include these five parameters, plus the \'Offset\' column that VCM Scanner automatically records:'),
                 markdown('- Vehicle Speed [13]'),
                 markdown('- Engine RPM [12 or 2135]'),
                 markdown('- Transmission Current Gear [4120 or 14100]'),
@@ -163,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 23-Jan-2024*')
+                markdown('#### *App last updated 24-Jan-2024*')
         )
       )
     )
