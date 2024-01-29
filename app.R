@@ -1,5 +1,5 @@
 # Max upload size in megabytes
-max_upload_size_mb = 64
+max_upload_size_mb = 200
 
 # Parameter IDs to search for in CSV log to extract required data
 pids = list(
@@ -56,7 +56,7 @@ shinyApp(
                                                     choices=c('KPH', 'MPH'), selected='MPH'))
                            ),
                            fluidRow(
-                             column(12, markdown('*Max upload size is **64 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
+                             column(12, markdown('*Max upload size is **200 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
                              column(12, markdown('*If you still have problems, delete some unnecessary columns from the file to reduce its size. Required columns are listed in the Documentation tab.*'))
                            )
                     ),
