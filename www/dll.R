@@ -31,7 +31,7 @@ calc_freqs <- function(df) {
 
 interp_scale_filter <- function(df, log_units) {
   # interpolate data
-  for (j in 2:ncol(df)) {
+  for (j in 2:ncol(df)) {  # lapply() is no better than looping in this instance
     if (anyNA(df[,j])) {
       ii = which(!is.na(df[,j]))
       df[,j] = approx(x=df$time[ii], y=df[ii,j], xout=df$time,
@@ -85,13 +85,7 @@ interp_scale_filter <- function(df, log_units) {
     df = df[seq(1,nr,2),]
   }
   
-  # remove extreme outlying RPMs by gear
   df$gear = round(df$gear)
-  df = df %>% group_by(gear) %>%
-    mutate(iqr=IQR(rpm), q1=quantile(rpm, 0.25), q3=quantile(rpm, 0.75))
-  iqr_mult = 2
-  df$outlier = (df$rpm < (df$q1 - iqr_mult*df$iqr)) | (df$rpm > (df$q3 + iqr_mult*df$iqr))
-  df = df[!df$outlier, c('time', 'gear', 'rpm', 'speed', 'pedal', 'load')]
   
   return(df)
 }
@@ -117,8 +111,8 @@ calc_bins_and_weights <- function(df, log_units, dd_units, pedal_breaks, speed_b
   df$i_speed2 = as.integer(lapply(df$speed, 'bin_speed', bins=speed_bins, j=2))
   
   # add gear weight column
-  df$gear_weight = 1/(df$gear + 2)
-  df$gear_weight[df$gear == 1] = 1/(3 + 2)  # 1st gear weight equal to 3rd gear weight
+  df$gear_weight = 4/(df$gear + 2)
+  df$gear_weight[df$gear == 1] = 4/(3 + 2)  # 1st gear weight equal to 3rd gear weight
   
   return(df)
 }
@@ -130,16 +124,16 @@ calc_avgs_by_dd_cell <- function(df, n_pedal, n_speed, pedal_bins, speed_bins){
   load_mat = gear_mat
   for (i_pedal in 1:n_pedal) {
     for (i_speed in 1:n_speed) {
-      temp = df[(df$i_pedal == i_pedal) &
-                  ((df$i_speed1 == i_speed) | (df$i_speed2 == i_speed)),]
+      ii = which((df$i_pedal == i_pedal) & ((df$i_speed1 == i_speed) | (df$i_speed2 == i_speed)))
       
-      if (nrow(temp) > 0) {
+      if (length(ii) > 0) {
         # inverse speed delta weight
-        speed_delta = abs(temp$speed - speed_bins[i_speed])
-        temp$speed_weight = 1/(speed_delta + max(speed_delta)/2)
+        speed_delta = abs(df$speed[ii] - speed_bins[i_speed])
+        # speed_weight = 1/(speed_delta + max(speed_delta)/2)
+        speed_weight = cos(speed_delta/max(speed_delta)*pi/2)
         
-        gear_mat[i_pedal, i_speed] = mean(temp$gear)
-        load_mat[i_pedal, i_speed] = weighted.mean(temp$load, temp$gear_weight*temp$speed_weight)
+        gear_mat[i_pedal, i_speed] = mean(df$gear[ii])
+        load_mat[i_pedal, i_speed] = weighted.mean(df$load[ii], df$gear_weight[ii]*speed_weight)
       } else {
         gear_mat[i_pedal, i_speed] = NA
         load_mat[i_pedal, i_speed] = NA

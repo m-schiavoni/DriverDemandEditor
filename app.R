@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 24-Jan-2024*')
+                markdown('#### *App last updated 28-Jan-2024*')
         )
       )
     )
@@ -233,7 +233,7 @@ shinyApp(
       df = do.call('rbind', data_list)
       
       # convert columns from strings to numbers
-      df = suppressWarnings(as.data.frame(apply(df, 2, as.numeric)))
+      df = suppressWarnings(as.data.frame(lapply(df, as.numeric)))
       
       # drop rows in which our columns of interest are all blank
       df = df[!(is.na(df$gear) & is.na(df$rpm) & is.na(df$speed) & is.na(df$pedal) & is.na(df$load)),]
