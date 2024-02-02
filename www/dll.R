@@ -117,10 +117,9 @@ calc_bins_and_weights <- function(df, log_units, dd_units, pedal_breaks, speed_b
   return(df)
 }
 
-calc_avgs_by_dd_cell <- function(df, n_pedal, n_speed, pedal_bins, speed_bins){
+calc_avgs_by_dd_cell <- function(df, n_pedal, speed_bins){
+  n_speed = length(speed_bins)
   gear_mat = matrix(nrow=n_pedal, ncol=n_speed)
-  rownames(gear_mat) = paste0('p_', pedal_bins)
-  colnames(gear_mat) = paste0('s_', speed_bins)
   load_mat = gear_mat
   for (i_pedal in 1:n_pedal) {
     for (i_speed in 1:n_speed) {
@@ -129,7 +128,6 @@ calc_avgs_by_dd_cell <- function(df, n_pedal, n_speed, pedal_bins, speed_bins){
       if (length(ii) > 0) {
         # inverse speed delta weight
         speed_delta = abs(df$speed[ii] - speed_bins[i_speed])
-        # speed_weight = 1/(speed_delta + max(speed_delta)/2)
         speed_weight = cos(speed_delta/max(speed_delta)*pi/2)
         
         gear_mat[i_pedal, i_speed] = mean(df$gear[ii])
@@ -180,26 +178,7 @@ normalize_load <- function(avg_by_dd_cell, n_speed, n_pedal){
   return(load_mod)
 }
 
-kill_outliers = function(vec) {
-  vec_out = vec
-  for (i in 2:(length(vec)-1)) {
-    peak = (vec[i] > vec[i-1]) & (vec[i] > vec[i+1])
-    valley = (vec[i] < vec[i-1]) & (vec[i] < vec[i+1])
-    if (peak | valley) {
-      pct_delta1 = (vec[i] - vec[i-1]) / vec[i-1]
-      pct_delta2 = (vec[i] - vec[i+1]) / vec[i+1]
-      if (peak) {
-        pct_delta = min(pct_delta1, pct_delta2)
-      } else {
-        pct_delta = max(pct_delta1, pct_delta2)
-      }
-      if (abs(pct_delta) > 0.15) vec_out[i] = (vec[i-1] + vec[i+1])/2
-    }
-  }
-  return(vec_out)
-}
-
-calc_new_dd <- function(dd_mat, target_mat, load_mod, n_pedal, n_speed){
+calc_new_dd <- function(dd_mat, target_mat, load_mod){
   # generate raw output
   dd_out = dd_mat*target_mat/load_mod
   
@@ -219,48 +198,54 @@ calc_new_dd <- function(dd_mat, target_mat, load_mod, n_pedal, n_speed){
   # ensure all columns are increasing
   dd_out = apply(dd_out, 2, sort)
   
-  # find and replace outliers
-  dd_out = t(apply(dd_out, 1, 'kill_outliers'))
-  
   return(dd_out)
 }
 
-smooth_dd <- function(dd_out, n_pedal, n_speed){
-  # smooth horizontally
-  dd_out_smooth = t(apply(dd_out, 1, stats::filter, filter=c(0.5,1,2,1,0.5)/5))
-  dd_out_smooth[,1] = dd_out[,1]
-  dd_out_smooth[,2] = (dd_out[,1] + 2*dd_out[,2] + dd_out[,3])/4
-  dd_out_smooth[,n_speed] = dd_out[,n_speed]
-  dd_out_smooth[,n_speed-1] = (dd_out[,n_speed] + 2*dd_out[,n_speed-1] + dd_out[,n_speed-2])/4
-  
-  # additional step for first and last columns
-  dd_out_smooth[,1] = (dd_out_smooth[,1] + 2*dd_out_smooth[,2] - dd_out_smooth[,3])/2
-  dd_out_smooth[,n_speed] = (dd_out_smooth[,n_speed] + 2*dd_out_smooth[,n_speed-1] - dd_out_smooth[,n_speed-2])/2
-  
-  # don't smooth first cell
-  dd_out_smooth[1,1] = dd_out[1,1]
-  
-  # ensure all columns are increasing
-  dd_out_smooth = apply(dd_out_smooth, 2, sort)
-  
-  return(dd_out_smooth)
+whittaker = function(y, lambda=10, d=2) {
+  I = diag(length(y))
+  D = diff(I, 1, d)
+  A = I + lambda * t(D) %*% D
+  x = solve(A, y)
+  return(x)
 }
 
-finalize_dd <- function(dd_out_smooth, decel_mult, max_speed, pedal_bins, speed_bins){
-  dd_out_final = dd_out_smooth
+smooth_dd <- function(dd){
+  # smooth columns
+  dd_smooth = apply(dd, 2, whittaker, lambda=0.1, d=3)
   
+  # reset first and last row
+  dd_smooth[1,] = dd[1,]
+  dd_smooth[nrow(dd),] = dd[nrow(dd),]
+  
+  # smooth rows
+  dd_smooth = t(apply(dd_smooth, 1, whittaker, lambda=1, d=3))
+  
+  # don't smooth first cell
+  dd_smooth[1,1] = dd[1,1]
+  
+  # ensure max torque is not exceeded
+  max_tq = max(dd)
+  dd_smooth[which(dd_smooth > max_tq)] = max_tq
+  
+  # ensure all columns are increasing
+  dd_smooth = apply(dd_smooth, 2, sort)
+  
+  return(dd_smooth)
+}
+
+finalize_dd <- function(dd, decel_mult, max_speed, pedal_bins, speed_bins){
   # increase magnitude of negatives
-  negs = which(dd_out_final < 0)
-  dd_out_final[negs] = decel_mult*dd_out_final[negs]
+  negs = which(dd < 0)
+  dd[negs] = decel_mult*dd[negs]
   
   # copy max_speed column to the right
   j = which(speed_bins == as.numeric(max_speed))
-  dd_out_final[,j:length(speed_bins)] = dd_out_final[,j]
+  dd[,j:length(speed_bins)] = dd[,j]
   
   # final rounded result
-  dd_out_final = round(dd_out_final, 1)
-  rownames(dd_out_final) = paste0('p_', pedal_bins)
-  colnames(dd_out_final) = paste0('s_', speed_bins)
+  dd = round(dd, 1)
+  rownames(dd) = paste0('p_', pedal_bins)
+  colnames(dd) = paste0('s_', speed_bins)
   
-  return(dd_out_final)
+  return(dd)
 }

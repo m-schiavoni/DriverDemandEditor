@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 28-Jan-2024*')
+                markdown('#### *App last updated 2-Feb-2024*')
         )
       )
     )
@@ -181,7 +181,7 @@ shinyApp(
       dd_df = read.delim(text=input$dd_in, header=FALSE)
       if (dd_df[nrow(dd_df),1] == '%') dd_df = dd_df[1:(nrow(dd_df)-1),]
       if (is.na(dd_df[1,ncol(dd_df)])) dd_df = dd_df[,1:(ncol(dd_df)-1)]
-      validate(need(min(dim(dd_df))>=14, 'DD table read error'))
+      validate(need(min(dim(dd_df)) >= 14, 'DD table read error'))
       return(dd_df)
     })
     pedal_bins <- reactive({as.numeric(dd_df()[-1,1])})
@@ -215,7 +215,6 @@ shinyApp(
     })
     
     log_df_0 <- reactive({
-      
       # identify column indices we need
       pid_indices = vector('numeric', length(pids))
       for (i in 1:length(pids)) {
@@ -294,15 +293,14 @@ shinyApp(
     n_gear <- reactive({max(log_df()$gear)})
     
     # calculate avg gear and load by DD cell
-    avg_by_dd_cell <- reactive({calc_avgs_by_dd_cell(log_df(),n_pedal(),n_speed(),pedal_bins(),speed_bins())})
+    avg_by_dd_cell <- reactive({calc_avgs_by_dd_cell(log_df(), n_pedal(), speed_bins())})
     
     # plot RPM vs. Pedal by gear
-    output$rpm_by_gear <- renderPlot({plot_rpm_vs_pedal(log_df())})
+    output$rpm_by_gear <- renderPlot({plot_rpm_vs_pedal(log_df()[,c('gear','pedal','rpm')])})
     
     # plot Avg. Gear by DD Cell
     output$gear_by_cell <- renderPlot({
-      plot_avg_gear_by_cell(avg_by_dd_cell(), n_gear(), n_speed(), n_pedal(),
-                            speed_bins(), pedal_bins(), input$dd_units)
+      plot_avg_gear_by_cell(avg_by_dd_cell(), n_gear(), speed_bins(), pedal_bins(), input$dd_units)
     })
     
     # create target profile dataframe and vector, scaled to minimum logged load
@@ -373,10 +371,10 @@ shinyApp(
     load_mod <- reactive({normalize_load(avg_by_dd_cell(), n_speed(), n_pedal())})
     
     # calculate new raw DD table
-    dd_out <- reactive({calc_new_dd(dd_mat(), target_mat(), load_mod(), n_pedal(), n_speed())})
+    dd_out <- reactive({calc_new_dd(dd_mat(), target_mat(), load_mod())})
     
     # smooth new DD table
-    dd_out_smooth <- reactive({smooth_dd(dd_out(), n_pedal(), n_speed())})
+    dd_out_smooth <- reactive({smooth_dd(dd_out())})
     
     # create max speed dropdown
     output$max_speed <- renderUI({
