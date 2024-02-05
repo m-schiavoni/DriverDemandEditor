@@ -16,12 +16,12 @@ plot_rpm_vs_pedal <- function(df){
   }
 }
 
-plot_avg_gear_by_cell <- function(avg_by_dd_cell, n_gear, speed_bins, pedal_bins, dd_units){
+plot_avg_gear_by_cell <- function(gear_mat, n_gear, speed_bins, pedal_bins, dd_units){
   n_speed = length(speed_bins)
   n_pedal = length(pedal_bins)
   
   par(mar=c(4,4,3,1))
-  min_gear = floor(min(avg_by_dd_cell$gear, na.rm=TRUE))
+  min_gear = floor(min(gear_mat, na.rm=TRUE))
   gear_palette = colorRampPalette(gear_colors[min_gear:n_gear])(1+(n_gear-min_gear)*4)
   
   # set background color to grey
@@ -30,11 +30,11 @@ plot_avg_gear_by_cell <- function(avg_by_dd_cell, n_gear, speed_bins, pedal_bins
   par(new=TRUE)
   
   # plot matrix
-  image(1:n_speed, 1:n_pedal, t(avg_by_dd_cell$gear)[,n_pedal:1], col=gear_palette,
+  image(1:n_speed, 1:n_pedal, t(gear_mat)[,n_pedal:1], col=gear_palette,
         xaxt='n', yaxt='n', xlab='', ylab='')
   
   # add cell labels
-  gear_vec = as.vector(avg_by_dd_cell$gear)
+  gear_vec = as.vector(gear_mat)
   xvec = rep(1:n_speed, each=n_pedal); xvec = xvec[!is.na(gear_vec)]
   yvec = rep(n_pedal:1, times=n_speed); yvec = yvec[!is.na(gear_vec)]
   gear_vec = gear_vec[!is.na(gear_vec)]
@@ -66,7 +66,7 @@ profile_plot <- function(pedal_bins, profile_df, profile_vec){
          lty=c(1,1,1,1,1,2), lwd=c(2,2,2,2,2,1), pch=c(NA,NA,NA,NA,NA,0), pt.cex=c(NA,NA,NA,NA,NA,1.1))
 }
 
-plot_load_by_speed <- function(df, avg_by_dd_cell, target_mat, speed_breaks, speed_bins, pedal_bins, n_gear, dd_units){
+plot_load_by_speed <- function(df, load_mat, target_mat, speed_breaks, speed_bins, pedal_bins, n_gear, dd_units){
   leg = c('1st gear', '2nd gear', '3rd gear', '4th gear', '5th gear',
           '6th gear', '7th gear', '8th gear', '9th gear', '10th gear')[1:n_gear]
   i_min_speed = which(speed_breaks == max(speed_breaks[speed_breaks <= min(df$speed)]))
@@ -85,10 +85,10 @@ plot_load_by_speed <- function(df, avg_by_dd_cell, target_mat, speed_breaks, spe
     grid(col='grey60', lty='dotted')
     
     # plot avg load curve
-    jj = which(!is.na(avg_by_dd_cell$load[,i]))
-    lines(pedal_bins[jj], avg_by_dd_cell$load[jj,i], lwd=4, lty=1, col='white')
-    lines(pedal_bins[jj], avg_by_dd_cell$load[jj,i], lwd=2, lty=1, col='black')
-    points(pedal_bins[jj], avg_by_dd_cell$load[jj,i], pch=19)
+    jj = which(!is.na(load_mat[,i]))
+    lines(pedal_bins[jj], load_mat[jj,i], lwd=4, lty=1, col='white')
+    lines(pedal_bins[jj], load_mat[jj,i], lwd=2, lty=1, col='black')
+    points(pedal_bins[jj], load_mat[jj,i], pch=19)
     
     # plot target curve
     lines(pedal_bins, target_mat[,i], lwd=2, lty=1, col='white')

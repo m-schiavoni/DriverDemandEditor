@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 2-Feb-2024*')
+                markdown('#### *App last updated 4-Feb-2024*')
         )
       )
     )
@@ -300,7 +300,7 @@ shinyApp(
     
     # plot Avg. Gear by DD Cell
     output$gear_by_cell <- renderPlot({
-      plot_avg_gear_by_cell(avg_by_dd_cell(), n_gear(), speed_bins(), pedal_bins(), input$dd_units)
+      plot_avg_gear_by_cell(avg_by_dd_cell()$gear, n_gear(), speed_bins(), pedal_bins(), input$dd_units)
     })
     
     # create target profile dataframe and vector, scaled to minimum logged load
@@ -311,6 +311,7 @@ shinyApp(
       df[,1:5] = round(df[,1:5], 2)
       return(df)
     })
+    
     profile_vec <- reactive({
       if (input$profile == 'Custom') {
         if (input$apply_custom > 0) {
@@ -363,12 +364,14 @@ shinyApp(
     
     # plot Load vs. Pedal by Speed
     output$load_by_speed <- renderPlot({
-      plot_load_by_speed(log_df(), avg_by_dd_cell(), target_mat(), speed_breaks(),
+      # plot_load_by_speed(log_df(), avg_by_dd_cell()$load, target_mat(), speed_breaks(),
+      #                    speed_bins(), pedal_bins(), n_gear(), input$dd_units)
+      plot_load_by_speed(log_df(), load_mod(), target_mat(), speed_breaks(),
                          speed_bins(), pedal_bins(), n_gear(), input$dd_units)
     })
     
     # normalize logged load
-    load_mod <- reactive({normalize_load(avg_by_dd_cell(), n_speed(), n_pedal())})
+    load_mod <- reactive({normalize_load(avg_by_dd_cell()$load, n_speed(), n_pedal())})
     
     # calculate new raw DD table
     dd_out <- reactive({calc_new_dd(dd_mat(), target_mat(), load_mod())})
