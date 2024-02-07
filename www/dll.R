@@ -138,40 +138,40 @@ calc_avgs_by_dd_cell <- function(df, n_pedal, speed_bins){
   return(list(gear=gear_mat, load=load_mat))
 }
 
-interp_sort <- function(v, sort_tf=FALSE) {
+sort_interp <- function(v, sort_tf=FALSE) {
   ii = which(!is.na(v))
-  if (length(ii) < 2) {
-    return(v)
-  } else {
+  if (length(ii) > 1) {
+    # sort non-missing values
     if (sort_tf) v[ii] = sort(v[ii])
     
     # interpolate interior missing values when both adjacent values are available
     ii_d1 = c(1, diff(ii))
     if (max(ii_d1) > 1) {
       jj = which(is.na(v))
-      for (p in 2:(length(v)-1)) {
-        if ((p %in% jj) & ((p-1) %in% ii) & ((p+1) %in% ii)) {
-          v[p] = (v[p-1] + v[p+1])/2
-        }
-      }
+      kk = 2:(length(v)-1)
+      kk = kk[(kk %in% jj) & ((kk-1) %in% ii) & ((kk+1) %in% ii)]
+      if (length(kk) > 0) v[kk] = (v[kk-1] + v[kk+1])/2
     }
-    return(v)
   }
+  return(v)
 }
 
 normalize_load <- function(load_mat, n_speed, n_pedal){
+  # interpolate missing values across rows
+  load_mat = t(apply(load_mat, 1, sort_interp, sort_tf=FALSE))
+  
+  # sort and interpolate missing values along columns
+  load_mat = apply(load_mat, 2, sort_interp, sort_tf=TRUE)
+  
+  # smooth columns
+  load_mat = apply(load_mat, 2, whittaker, lambda=0.1, d=3)
+  
   # scale avg load matrix to have max value of exactly 100
   max_load = max(load_mat, na.rm=TRUE)
-  if (max_load > 90) {
+  if (max_load > 94) {
     min_load = min(15, min(load_mat, na.rm=TRUE))
     load_mat = load_mat + (100 - max_load)*(load_mat - min_load)/(max_load - min_load)
   }
-  
-  # interpolate missing values across rows
-  load_mat = t(apply(load_mat, 1, interp_sort, sort_tf=FALSE))
-  
-  # sort and interpolate missing values across columns
-  load_mat = apply(load_mat, 2, interp_sort, sort_tf=TRUE)
   
   return(load_mat)
 }
@@ -200,11 +200,17 @@ calc_new_dd <- function(dd_mat, target_mat, load_mod){
   return(dd_out)
 }
 
+# Whittaker smoother with missing value handling
 whittaker = function(y, lambda=1, d=2) {
-  I = diag(length(y))
-  D = diff(I, 1, d)
-  A = I + lambda * t(D) %*% D
-  x = solve(A, y)
+  x = y
+  ii = which(!is.na(y))
+  
+  if (length(ii) > (d+1)) {
+    I = diag(length(ii))
+    D = diff(I, 1, d)
+    A = I + lambda * t(D) %*% D
+    x[ii] = solve(A, y[ii])
+  }
   return(x)
 }
 

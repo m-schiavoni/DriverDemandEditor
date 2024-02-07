@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 4-Feb-2024*')
+                markdown('#### *App last updated 6-Feb-2024*')
         )
       )
     )
@@ -239,7 +239,7 @@ shinyApp(
     })
     
     # determine logged frequency of pedal and load
-    freqs <- reactive({calc_freqs(log_df_0())})
+    freqs <- reactive({calc_freqs(log_df_0()[,c('time','pedal','load')])})
     output$freq_table <- renderDT(datatable(freqs(),
                                             options = list(dom='tB', ordering=FALSE, pageLength=2, buttons=FALSE)) %>%
                                             formatRound(columns=1, digits=1))
