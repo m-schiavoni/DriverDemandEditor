@@ -39,9 +39,6 @@ interp_scale_filter <- function(df, log_units) {
     }
   }
   
-  # scale load if greater than 100
-  if (max(df$load) > 100) df$load = df$load*100/max(df$load)
-  
   # scale pedal if min greater than 0
   min_pedal = min(df$pedal)
   max_pedal = max(df$pedal)
@@ -55,6 +52,9 @@ interp_scale_filter <- function(df, log_units) {
   df$pedal = round(df$pedal, 1)
   pedal_deltas = c(0, diff(df$pedal))
   df = df[pedal_deltas > 0,]
+  
+  # scale load if expressed as percent
+  if (max(df$load) < 2.5) df$load = df$load*100/max(df$load)
   
   # drop anomalous data in top-left corner of load-pedal graphs
   df = df[(df$pedal>20) | (df$load<80),]

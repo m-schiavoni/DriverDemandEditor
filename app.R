@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 6-Feb-2024*')
+                markdown('#### *App last updated 12-Feb-2024*')
         )
       )
     )
@@ -256,7 +256,7 @@ shinyApp(
       max_load = max(log_df_0()$load, na.rm=TRUE)
       if (max_load > 100) {
         msg = paste0(msg, 'WARNING: Load exceeds 100; values will be re-scaled. ')
-      } else if (max_load < 50) {
+      } else if ((max_load > 2.5) & (max_load < 50)) {
         msg = paste0(msg, 'WARNING: Load never exceeds 50; data collection might be insufficient. ')
       }
       
