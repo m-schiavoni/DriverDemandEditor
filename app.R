@@ -7,7 +7,7 @@ pids = list(
   rpm = c(12, 2135),
   speed = c(13),
   pedal = c(2114, 2115, 2116, 2117, 73, 74),
-  load = c(4, 67)
+  load = c(4)
 )
 
 ################################################################################
@@ -156,7 +156,7 @@ shinyApp(
                 markdown('- Vehicle Speed [13]'),
                 markdown('- Engine RPM [12 or 2135]'),
                 markdown('- Transmission Current Gear [4120 or 14100]'),
-                markdown('- Calculated Engine Load [4]  *(but will also accept Absolute Load [67])*'),
+                markdown('- Calculated Engine Load [4]'),
                 markdown('- Accelerator Pedal Position [2114]  *(but will also accept 2115, 2116, 2117, 73, or 74)*'),
                 markdown('### Video Walk-Through'),
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
@@ -220,7 +220,7 @@ shinyApp(
       for (i in 1:length(pids)) {
         pid_indices[i] = na.omit(match(pids[[i]], log_list()[[1]][1,]))[1]
         validate(need(!is.na(pid_indices[i]),
-                      paste0('ERROR: no ', names(pids)[i], ' pids detected [', pids[i], ']')))
+                      paste0('ERROR: no ', names(pids)[i], ' pid detected [', pids[i], ']')))
       }
       
       # extract only columns we need, and rename them for simplicity
@@ -254,9 +254,7 @@ shinyApp(
     output$data_checks <- renderPrint({
       msg = ''
       max_load = max(log_df_0()$load, na.rm=TRUE)
-      if (max_load > 100) {
-        msg = paste0(msg, 'WARNING: Load exceeds 100; values will be re-scaled. ')
-      } else if ((max_load > 2.5) & (max_load < 50)) {
+      if ((max_load > 1.0) & (max_load < 50)) {
         msg = paste0(msg, 'WARNING: Load never exceeds 50; data collection might be insufficient. ')
       }
       
@@ -271,14 +269,16 @@ shinyApp(
     log_df <- reactive({
       validate(need(min(log_df_0()$load, na.rm=TRUE) >= 0,
                     'ERROR: Negative load values detected. Check accuracy of CSV export.'))
+      validate(need(max(log_df_0()$load, na.rm=TRUE) <= 100,
+                    'ERROR: Load values exceed 100. Check accuracy of CSV export.'))
       validate(need(min(log_df_0()$pedal, na.rm=TRUE) >= 0,
                     'ERROR: Negative pedal values detected. Check accuracy of CSV export.'))
       validate(need(max(log_df_0()$pedal, na.rm=TRUE) <= 100,
                     'ERROR: Pedal values exceed 100. Check accuracy of CSV export.'))
-      validate(need(max(log_df_0()$gear, na.rm=TRUE) <= 10,
-                    'ERROR: Transmission gear values exceed 10. Check accuracy of CSV export.'))
       validate(need(min(log_df_0()$gear, na.rm=TRUE) >= 1,
                     'ERROR: Transmission gear values outside range. Check accuracy of CSV export.'))
+      validate(need(max(log_df_0()$gear, na.rm=TRUE) <= 10,
+                    'ERROR: Transmission gear values exceed 10. Check accuracy of CSV export.'))
       
       # interpolate gaps, scale values, and filter data
       df = interp_scale_filter(log_df_0(), input$log_units)

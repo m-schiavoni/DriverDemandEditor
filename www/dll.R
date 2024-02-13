@@ -53,19 +53,19 @@ interp_scale_filter <- function(df, log_units) {
   pedal_deltas = c(0, diff(df$pedal))
   df = df[pedal_deltas > 0,]
   
-  # scale load if expressed as percent
-  if (max(df$load) < 2.5) df$load = df$load*100/max(df$load)
-  
-  # drop anomalous data in top-left corner of load-pedal graphs
-  df = df[(df$pedal>20) | (df$load<80),]
-  df = df[(df$pedal>10) | (df$load<40),]
-  
   # drop lowest speeds
   if (log_units == 'MPH') {
     df = df[df$speed > 3.11,]
   } else if (log_units == 'KPH') {
     df = df[df$speed > 5,]
   }
+  
+  # scale load if expressed as percent
+  if (max(df$load) <= 1.0) df$load = df$load*100
+  
+  # drop anomalous data in top-left corner of load-pedal graphs
+  df = df[(df$pedal>20) | (df$load<80),]
+  df = df[(df$pedal>10) | (df$load<40),]
   
   # down-sample to reduce memory usage
   nr = nrow(df)
