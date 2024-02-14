@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 12-Feb-2024*')
+                markdown('#### *App last updated 13-Feb-2024*')
         )
       )
     )
@@ -353,6 +353,9 @@ shinyApp(
     # create target profile matrix
     target_mat <- reactive({
       target_mat = matrix(data=rep(profile_vec(), times=n_speed()), nrow=n_pedal(), ncol=n_speed())
+      target_mat[,1] = target_mat[,1]*profile_df()$mult^2
+      target_mat[,2] = target_mat[,2]*profile_df()$mult
+      target_mat[target_mat > 100] = 100
       target_mat = round(target_mat, 2)
       rownames(target_mat) = paste0('p_', pedal_bins())
       colnames(target_mat) = paste0('s_', speed_bins())
