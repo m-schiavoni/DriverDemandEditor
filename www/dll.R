@@ -29,6 +29,28 @@ calc_freqs <- function(df) {
   return(freqs)
 }
 
+find_nearest = function(x, vec) {
+  delta = abs(vec - x)
+  return(which.min(delta))
+}
+
+deduce_gear = function(speed, rpm){
+  ratio = speed/rpm
+  dens = density(ratio, bw='nrd', adjust=0.5, kernel='epanechnikov')
+  
+  # identify indices of peaks
+  d1 = diff(dens$y)
+  d1_2 = c(0, d1[1:(length(d1)-1)])
+  ii = which((d1 <= 0) & (d1_2 > 0))
+  
+  modes = dens$x[ii]
+  modes = modes[which(dens$y[ii] > 0.1*max(dens$y[ii]))]
+  modes = as.numeric(na.omit(modes[1:10]))
+  
+  gear = as.integer(lapply(ratio, 'find_nearest', vec=modes))
+  return(gear)
+}
+
 interp_scale_filter <- function(df, log_units) {
   # interpolate data
   for (j in 2:ncol(df)) {  # lapply() is no better than looping in this instance
@@ -85,7 +107,15 @@ interp_scale_filter <- function(df, log_units) {
     df = df[seq(1,nr,2),]
   }
   
-  df$gear = round(df$gear)
+  if ('gear' %in% colnames(df)) {
+    if ((min(df$gear) >= 1) & (max(df$gear <= 10))) {
+      df$gear = round(df$gear)
+    } else {
+      df$gear = deduce_gear(df$speed, df$rpm)
+    }
+  } else {
+    df$gear = deduce_gear(df$speed, df$rpm)
+  }
   
   return(df)
 }

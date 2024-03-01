@@ -155,14 +155,14 @@ shinyApp(
                 markdown('#### The log file MUST include these five parameters, plus the \'Offset\' column that VCM Scanner automatically records:'),
                 markdown('- Vehicle Speed [13]'),
                 markdown('- Engine RPM [12 or 2135]'),
-                markdown('- Transmission Current Gear [4120 or 14100]'),
                 markdown('- Calculated Engine Load [4]'),
                 markdown('- Accelerator Pedal Position [2114]  *(but will also accept 2115, 2116, 2117, 73, or 74)*'),
+                markdown('- Transmission Current Gear [4120 or 14100]  *(but will be heuristically deduced from Speed/RPM ratio if missing)*'),
                 markdown('### Video Walk-Through'),
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 14-Feb-2024*')
+                markdown('#### *App last updated 29-Feb-2024*')
         )
       )
     )
@@ -219,15 +219,18 @@ shinyApp(
       pid_indices = vector('numeric', length(pids))
       for (i in 1:length(pids)) {
         pid_indices[i] = na.omit(match(pids[[i]], log_list()[[1]][1,]))[1]
-        validate(need(!is.na(pid_indices[i]),
-                      paste0('ERROR: no ', names(pids)[i], ' pid detected [', pids[i], ']')))
+        if (i > 1) {
+          validate(need(!is.na(pid_indices[i]),
+                        paste0('ERROR: no ', names(pids)[i], ' pid detected [', pids[i], ']')))
+        }
       }
+      ii = which(!is.na(pid_indices))
       
       # extract only columns we need, and rename them for simplicity
       data_list = list()
       for (i in 1:length(log_list())) {
-        data_list[[i]] = log_list()[[i]][-1, c(1, pid_indices)]
-        colnames(data_list[[i]]) = c('time', names(pids))
+        data_list[[i]] = log_list()[[i]][-1, c(1, pid_indices[ii])]
+        colnames(data_list[[i]]) = c('time', names(pids[ii]))
       }
       df = do.call('rbind', data_list)
       
@@ -235,7 +238,11 @@ shinyApp(
       df = suppressWarnings(as.data.frame(lapply(df, as.numeric)))
       
       # drop rows in which our columns of interest are all blank
-      df = df[!(is.na(df$gear) & is.na(df$rpm) & is.na(df$speed) & is.na(df$pedal) & is.na(df$load)),]
+      if (length(ii) == length(pids)) {
+        df = df[!(is.na(df$gear) & is.na(df$rpm) & is.na(df$speed) & is.na(df$pedal) & is.na(df$load)),]
+      } else {
+        df = df[!(is.na(df$rpm) & is.na(df$speed) & is.na(df$pedal) & is.na(df$load)),]
+      }
     })
     
     # determine logged frequency of pedal and load
@@ -261,6 +268,8 @@ shinyApp(
       min_pedal = min(log_df_0()$pedal, na.rm=TRUE)
       if (min_pedal > 6) msg = paste0(msg, 'WARNING: min(Pedal) > 0; values will be re-scaled. ')
       
+      if (!('gear' %in% colnames(log_df_0()))) msg = paste0(msg, 'WARNING: Trans Gear data not detected; values will be heuristically deduced. ')
+      
       if (msg == '') msg = 'Supplementary data checks passed.'
       
       return(noquote(msg))
@@ -275,10 +284,6 @@ shinyApp(
                     'ERROR: Negative pedal values detected. Check accuracy of CSV export.'))
       validate(need(max(log_df_0()$pedal, na.rm=TRUE) <= 100,
                     'ERROR: Pedal values exceed 100. Check accuracy of CSV export.'))
-      validate(need(min(log_df_0()$gear, na.rm=TRUE) >= 1,
-                    'ERROR: Transmission gear values outside range. Check accuracy of CSV export.'))
-      validate(need(max(log_df_0()$gear, na.rm=TRUE) <= 10,
-                    'ERROR: Transmission gear values exceed 10. Check accuracy of CSV export.'))
       
       # interpolate gaps, scale values, and filter data
       df = interp_scale_filter(log_df_0(), input$log_units)
