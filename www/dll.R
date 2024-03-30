@@ -137,8 +137,13 @@ calc_bins_and_weights <- function(df, log_units, dd_units, pedal_breaks, speed_b
   }
   
   df$i_pedal = as.integer(cut(df$pedal, pedal_breaks))
-  df$i_speed1 = as.integer(lapply(df$speed, 'bin_speed', bins=speed_bins, j=1))
-  df$i_speed2 = as.integer(lapply(df$speed, 'bin_speed', bins=speed_bins, j=2))
+  if (dd_units == 'RPM') {
+    df$i_speed1 = as.integer(lapply(df$rpm, 'bin_speed', bins=speed_bins, j=1))
+    df$i_speed2 = as.integer(lapply(df$rpm, 'bin_speed', bins=speed_bins, j=2))
+  } else {
+    df$i_speed1 = as.integer(lapply(df$speed, 'bin_speed', bins=speed_bins, j=1))
+    df$i_speed2 = as.integer(lapply(df$speed, 'bin_speed', bins=speed_bins, j=2))
+  }
   
   # add gear weight column
   df$gear_weight = 4/(df$gear + 2)
@@ -147,7 +152,7 @@ calc_bins_and_weights <- function(df, log_units, dd_units, pedal_breaks, speed_b
   return(df)
 }
 
-calc_avgs_by_dd_cell <- function(df, n_pedal, speed_bins){
+calc_avgs_by_dd_cell <- function(df, n_pedal, speed_bins, dd_units){
   n_speed = length(speed_bins)
   gear_mat = matrix(nrow=n_pedal, ncol=n_speed)
   load_mat = gear_mat
@@ -157,7 +162,11 @@ calc_avgs_by_dd_cell <- function(df, n_pedal, speed_bins){
       
       if (length(ii) > 0) {
         # inverse speed delta weight
-        speed_delta = abs(df$speed[ii] - speed_bins[i_speed])
+        if (dd_units == 'RPM') {
+          speed_delta = abs(df$rpm[ii] - speed_bins[i_speed])
+        } else {
+          speed_delta = abs(df$speed[ii] - speed_bins[i_speed])
+        }
         speed_weight = cos(speed_delta/max(speed_delta)*pi/2)
         
         gear_mat[i_pedal, i_speed] = mean(df$gear[ii])

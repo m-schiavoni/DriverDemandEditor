@@ -42,7 +42,7 @@ plot_avg_gear_by_cell <- function(gear_mat, n_gear, speed_bins, pedal_bins, dd_u
   
   axis(side=1, at=1:n_speed, labels=speed_bins)
   axis(side=2, at=1:n_pedal, labels=rev(pedal_bins), par(las=1))
-  mtext(paste0('Vehicle Speed (',dd_units,')'), side=1, line=2.5)
+  mtext(paste0('Speed (',dd_units,')'), side=1, line=2.5)
   par(las=0); mtext('Pedal %', side=2, line=2.5)
   mtext('Avg. Gear Selected by Driver Demand Table Cell', 3, 1, cex=1.1)
   grid(nx=n_speed, ny=n_pedal, col='white', lty=1)
@@ -69,9 +69,15 @@ profile_plot <- function(pedal_bins, profile_df, profile_vec){
 plot_load_by_speed <- function(df, load_mat, target_mat, speed_breaks, speed_bins, pedal_bins, n_gear, dd_units){
   leg = c('1st gear', '2nd gear', '3rd gear', '4th gear', '5th gear',
           '6th gear', '7th gear', '8th gear', '9th gear', '10th gear')[1:n_gear]
-  i_min_speed = which(speed_breaks == max(speed_breaks[speed_breaks <= min(df$speed)]))
-  i_max_speed = which(speed_breaks == min(speed_breaks[speed_breaks >= max(df$speed)])) - 1
+  if (dd_units == 'RPM') {
+    i_min_speed = which(speed_breaks == max(speed_breaks[speed_breaks <= min(df$rpm)]))
+    i_max_speed = which(speed_breaks == min(speed_breaks[speed_breaks >= max(df$rpm)])) - 1
+  } else {
+    i_min_speed = which(speed_breaks == max(speed_breaks[speed_breaks <= min(df$speed)]))
+    i_max_speed = which(speed_breaks == min(speed_breaks[speed_breaks >= max(df$speed)])) - 1
+  }
   speeds = speed_bins[i_min_speed:i_max_speed]
+  if (dd_units == 'RPM') speeds = speeds[speeds > 1000]
   if (length(speeds) > 12) speeds = speeds[1:12]
   n_tall = ceiling(length(speeds)/4)
   par(mfrow=c(n_tall, 4), oma=c(0,0,6,0), mar=c(4.5, 4.5, 3, 2))
@@ -81,7 +87,7 @@ plot_load_by_speed <- function(df, load_mat, target_mat, speed_breaks, speed_bin
     # plot scatter data
     plot(df$pedal[ii], df$load[ii], pch=pch_vec[df$gear[ii]], col=gear_colors[df$gear[ii]],
          ylim=c(0,110), asp=1, xaxs='i', yaxs='i', cex.axis=1.15, cex.lab=1.2, cex.main=1.3,
-         xlab='Pedal %', ylab='Engine Load %', main=paste0('VSS Column: ', speed_bins[i], dd_units))
+         xlab='Pedal %', ylab='Engine Load %', main=paste0('Speed Column: ', speed_bins[i], dd_units))
     grid(col='grey60', lty='dotted')
     
     # plot avg load curve
@@ -95,7 +101,7 @@ plot_load_by_speed <- function(df, load_mat, target_mat, speed_breaks, speed_bin
     lines(pedal_bins, target_mat[,i], lwd=2, lty=2, col='red')
   }
   
-  mtext('Load % vs. Pedal % by Vehicle Speed', side=3, outer=TRUE, line=4, cex=1.1)
+  mtext('Load % vs. Pedal % by Speed', side=3, outer=TRUE, line=4, cex=1.1)
   par(fig=c(0, 1, 0, 1), oma=c(0, 0, 0, 0), mar=c(0, 0, 0, 0), new=TRUE)
   plot(0, 0, type='n', bty='n', xaxt='n', yaxt='n')
   legend('top', horiz=TRUE, inset=0.03, legend=c(leg, 'average', 'target'),
@@ -114,11 +120,13 @@ plot_pedal_1d <- function(dd_out_final, pedal_slider, pedal_bins, speed_bins, dd
   }
   plot(speed_bins, dd_out_final[pedal_slider,], 
        main=paste('Pedal % =', pedal_bins[pedal_slider]), xaxt='n',
-       xlab=paste0('Vehicle Speed (',dd_units,')'), ylab='Demanded Torque', ylim=y_range, las=2)
+       xlab=paste0('Speed (',dd_units,')'), ylab='Demanded Torque', ylim=y_range, las=2)
   rect(par('usr')[1], par('usr')[3], par('usr')[2], par('usr')[4], col='grey80')
-  abline(v=seq(0, max(speed_bins), by=20), col='white')
+  my_by = 20
+  if (dd_units == 'RPM') my_by = 500
+  abline(v=seq(0, max(speed_bins), by=my_by), col='white')
   abline(h=axTicks(2), col='white')
-  axis(1, at = seq(0, max(speed_bins), by=20), las=2)
+  axis(1, at = seq(0, max(speed_bins), by=my_by), las=2)
   points(speed_bins, dd_out_final[pedal_slider,], pch=19)
   lines(speed_bins, dd_out_final[pedal_slider,])
   abline(h=0, lty=2)

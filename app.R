@@ -139,7 +139,7 @@ shinyApp(
                 markdown('### Overview'),
                 markdown('#### Driver Demand Editor is applicable to Gen 5 GM vehicles that use a two-dimensional table for drive-by-wire throttle mapping with these characteristics:'),
                 markdown('- rows indexed by accelerator pedal percent'),
-                markdown('- columns indexed by vehicle speed'),
+                markdown('- columns indexed by vehicle speed -OR- engine RPM'),
                 markdown('- cell values representing torque requested'),
                 fluidRow(
                   column(2, markdown('#### Example:')),
@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 29-Feb-2024*')
+                markdown('#### *App last updated 29-Mar-2024*')
         )
       )
     )
@@ -181,6 +181,7 @@ shinyApp(
       dd_df = read.delim(text=input$dd_in, header=FALSE)
       if (dd_df[nrow(dd_df),1] == '%') dd_df = dd_df[1:(nrow(dd_df)-1),]
       if (is.na(dd_df[1,ncol(dd_df)])) dd_df = dd_df[,1:(ncol(dd_df)-1)]
+      validate(need(!any(is.na(dd_df)), 'ERROR: missing values detected. Copy DD table from your tune - NOT your log'))
       validate(need(min(dim(dd_df)) >= 14, 'DD table read error'))
       return(dd_df)
     })
@@ -190,6 +191,19 @@ shinyApp(
     n_speed <- reactive({length(speed_bins())})
     pedal_breaks <- reactive({c(0, pedal_bins()[1:n_pedal()-1] + diff(pedal_bins())/2, pedal_bins()[n_pedal()])})
     speed_breaks <- reactive({c(0, speed_bins()[1:n_speed()-1] + diff(speed_bins())/2, speed_bins()[n_speed()])})
+    
+    # determine whether columns represent vehicle speed or engine speed
+    speed_toggle <- reactive({
+      max_speed = max(speed_bins())
+      speed_toggle = 'vehicle'
+      if (max_speed > 1000) speed_toggle = 'engine'
+      return(speed_toggle)
+    })
+    dd_units <- reactive({
+      dd_units = input$dd_units
+      if (speed_toggle() == 'engine') dd_units = 'RPM'
+      return(dd_units)
+    })
     
     # create dd_mat object
     dd_mat <- reactive({
@@ -291,21 +305,21 @@ shinyApp(
                     'ERROR: Zero rows extracted. Most likely cause is faulty pedal data.'))
       
       # create pedal & speed bins and gear weights
-      df = calc_bins_and_weights(df, input$log_units, input$dd_units, pedal_breaks(), speed_bins())
+      df = calc_bins_and_weights(df, input$log_units, dd_units(), pedal_breaks(), speed_bins())
     })
     
     # number of gears
     n_gear <- reactive({max(log_df()$gear)})
     
     # calculate avg gear and load by DD cell
-    avg_by_dd_cell <- reactive({calc_avgs_by_dd_cell(log_df(), n_pedal(), speed_bins())})
+    avg_by_dd_cell <- reactive({calc_avgs_by_dd_cell(log_df(), n_pedal(), speed_bins(), dd_units())})
     
     # plot RPM vs. Pedal by gear
     output$rpm_by_gear <- renderPlot({plot_rpm_vs_pedal(log_df()[,c('gear','pedal','rpm')])})
     
     # plot Avg. Gear by DD Cell
     output$gear_by_cell <- renderPlot({
-      plot_avg_gear_by_cell(avg_by_dd_cell()$gear, n_gear(), speed_bins(), pedal_bins(), input$dd_units)
+      plot_avg_gear_by_cell(avg_by_dd_cell()$gear, n_gear(), speed_bins(), pedal_bins(), dd_units())
     })
     
     # create target profile dataframe and vector, scaled to minimum logged load
@@ -358,8 +372,15 @@ shinyApp(
     # create target profile matrix
     target_mat <- reactive({
       target_mat = matrix(data=rep(profile_vec(), times=n_speed()), nrow=n_pedal(), ncol=n_speed())
-      target_mat[,1] = target_mat[,1]*profile_df()$mult^2
-      target_mat[,2] = target_mat[,2]*profile_df()$mult
+      if (dd_units() == 'RPM') {
+        ii = which(speed_bins() <= 1500)
+        target_mat[,ii] = target_mat[,ii]*profile_df()$mult
+        ii = which(speed_bins() <= 1000)
+        target_mat[,ii] = target_mat[,ii]*profile_df()$mult
+      } else {
+        target_mat[,1] = target_mat[,1]*profile_df()$mult^2
+        target_mat[,2] = target_mat[,2]*profile_df()$mult
+      }
       target_mat[target_mat > 100] = 100
       target_mat = round(target_mat, 2)
       rownames(target_mat) = paste0('p_', pedal_bins())
@@ -373,9 +394,9 @@ shinyApp(
     # plot Load vs. Pedal by Speed
     output$load_by_speed <- renderPlot({
       # plot_load_by_speed(log_df(), avg_by_dd_cell()$load, target_mat(), speed_breaks(),
-      #                    speed_bins(), pedal_bins(), n_gear(), input$dd_units)
+      #                    speed_bins(), pedal_bins(), n_gear(), dd_units())
       plot_load_by_speed(log_df(), load_mod(), target_mat(), speed_breaks(),
-                         speed_bins(), pedal_bins(), n_gear(), input$dd_units)
+                         speed_bins(), pedal_bins(), n_gear(), dd_units())
     })
     
     # normalize logged load
@@ -413,11 +434,11 @@ shinyApp(
     # one-dimensional plots by pedal and speed
     output$pedal_1d <- renderPlot({
       plot_pedal_1d(dd_out_final(), input$pedal_slider,
-                    pedal_bins(), speed_bins(), input$dd_units)
+                    pedal_bins(), speed_bins(), dd_units())
     })
     output$speed_1d <- renderPlot({
       plot_speed_1d(dd_out_final(), input$speed_slider,
-                    speed_bins(), pedal_bins(), input$dd_units)
+                    speed_bins(), pedal_bins(), dd_units())
     })
     
     output$table_out = renderDT(
