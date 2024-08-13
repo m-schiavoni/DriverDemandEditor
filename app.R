@@ -121,7 +121,7 @@ shinyApp(
                                         min=1, max=1.4, value=1, step=0.05)),
                   column(6, uiOutput('max_speed'))
                 ),
-                markdown('*For safety purposes, this app does NOT generate significant changes to negative-valued cells (aside from the deceleration multiplier functionality). If you want to change cells from negative to positive, you will need to do this offline manually. Also, this app will NOT increase your maximum torque value.*'),
+                markdown('*This app will NOT increase your maximum torque value.*'),
                 DTOutput('table_out'),
                 markdown('#### <span style="color:blue">Click the \'CSV\' button directly above this to download results. Then paste into HP Tuners and fine-tune based on 1-D profile views.</span>'),
                 markdown(' '),
@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 29-Mar-2024*')
+                markdown('#### *App last updated 12-Aug-2024*')
         )
       )
     )

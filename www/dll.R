@@ -225,6 +225,18 @@ normalize_load <- function(load_mat, n_speed, n_pedal){
   return(load_mat)
 }
 
+interp_negs <- function(v){
+  i_negs = which(v < 0)
+  if (length(i_negs) > 1) {
+    i_max = max(i_negs)
+    pedal_values = as.integer(substring(names(v), 3, 5))
+    v[2:i_max] = approx(x = pedal_values[c(1, i_max+1)],
+                        y = v[c(1, i_max+1)],
+                        xout = pedal_values[2:i_max])$y
+  }
+  return(v)
+}
+
 calc_new_dd <- function(dd_mat, target_mat, load_mod){
   # generate raw output
   dd_out = dd_mat*target_mat/load_mod
@@ -233,11 +245,10 @@ calc_new_dd <- function(dd_mat, target_mat, load_mod){
   nas = which(is.na(dd_out))
   dd_out[nas] = dd_mat[nas]
   
-  # reset first cell, negatives, and last row
-  dd_out[1,1] = dd_mat[1,1]
-  negs = which(dd_mat <= 0)
-  dd_out[negs] = dd_mat[negs]
+  # reset first and last row, and interpolate negatives
+  dd_out[1,] = dd_mat[1,]
   dd_out[nrow(dd_out),] = dd_mat[nrow(dd_out),]
+  dd_out = apply(dd_out, 2, interp_negs)
   
   # ensure max torque is not exceeded
   max_tq = max(dd_mat)
