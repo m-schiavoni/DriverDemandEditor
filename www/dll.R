@@ -246,7 +246,7 @@ calc_new_dd <- function(dd_mat, target_mat, load_mod){
   dd_out[nas] = dd_mat[nas]
   
   # reset first and last row, and interpolate negatives
-  dd_out[1,] = dd_mat[1,]
+  if (dd_mat[1,1] == 0) dd_out[1,1] = 0
   dd_out[nrow(dd_out),] = dd_mat[nrow(dd_out),]
   dd_out = apply(dd_out, 2, interp_negs)
   
@@ -279,14 +279,14 @@ smooth_dd <- function(dd){
   dd_smooth = apply(dd, 2, whittaker, lambda=0.1, d=3)
   
   # reset first and last row
-  dd_smooth[1,] = dd[1,]
+  if (dd[1,1] == 0) dd_smooth[1,1] = 0
   dd_smooth[nrow(dd),] = dd[nrow(dd),]
   
   # smooth rows
   dd_smooth = t(apply(dd_smooth, 1, whittaker, lambda=1, d=3))
   
   # don't smooth first cell
-  dd_smooth[1,1] = dd[1,1]
+  if (dd[1,1] == 0) dd_smooth[1,1] = 0
   
   # ensure max torque is not exceeded
   max_tq = max(dd)
