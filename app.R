@@ -242,9 +242,16 @@ shinyApp(
       
       # extract only columns we need, and rename them for simplicity
       data_list = list()
-      for (i in 1:length(log_list())) {
+      num_logs = length(log_list())
+      for (i in 1:num_logs) {
         data_list[[i]] = log_list()[[i]][-1, c(1, pid_indices[ii])]
         colnames(data_list[[i]]) = c('time', names(pids[ii]))
+        if (num_logs > 1) {
+          data_list[[i]]$time = as.numeric(data_list[[i]]$time)
+          if (i > 1) {
+            data_list[[i]]$time = data_list[[i]]$time + max(data_list[[i-1]]$time, na.rm=TRUE)
+          }
+        }
       }
       df = do.call('rbind', data_list)
       
