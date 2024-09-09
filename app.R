@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 8-Sep-2024*')
+                markdown('#### *App last updated 27-Aug-2024*')
         )
       )
     )
@@ -242,16 +242,9 @@ shinyApp(
       
       # extract only columns we need, and rename them for simplicity
       data_list = list()
-      num_logs = length(log_list())
-      for (i in 1:num_logs) {
+      for (i in 1:length(log_list())) {
         data_list[[i]] = log_list()[[i]][-1, c(1, pid_indices[ii])]
         colnames(data_list[[i]]) = c('time', names(pids[ii]))
-        if (num_logs > 1) {
-          data_list[[i]]$time = as.numeric(data_list[[i]]$time)
-          if (i > 1) {
-            data_list[[i]]$time = data_list[[i]]$time + max(data_list[[i-1]]$time, na.rm=TRUE)
-          }
-        }
       }
       df = do.call('rbind', data_list)
       
