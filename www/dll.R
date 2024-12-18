@@ -55,9 +55,15 @@ interp_scale_filter <- function(df, log_units) {
   # interpolate data
   for (j in 2:ncol(df)) {  # lapply() is no better than looping in this instance
     if (anyNA(df[,j])) {
-      ii = which(!is.na(df[,j]))
-      df[,j] = approx(x=df$time[ii], y=df[ii,j], xout=df$time,
-                      method='linear', rule=2, ties=list("ordered", mean))$y
+      jmin = min(df[,j], na.rm=TRUE)
+      jmax = max(df[,j], na.rm=TRUE)
+      if (jmin == jmax) {
+        df[,j] = jmin
+      } else {
+        ii = which(!is.na(df[,j]))
+        df[,j] = approx(x=df$time[ii], y=df[ii,j], xout=df$time,
+                        method='linear', rule=2, ties=list("ordered", mean))$y
+      }
     }
   }
   
@@ -76,10 +82,12 @@ interp_scale_filter <- function(df, log_units) {
   df = df[pedal_deltas > 0,]
   
   # drop lowest speeds
-  if (log_units == 'MPH') {
-    df = df[df$speed > 3.11,]
-  } else if (log_units == 'KPH') {
-    df = df[df$speed > 5,]
+  if (max(df$speed) > 0) {
+    if (log_units == 'MPH') {
+      df = df[df$speed > 3.11,]
+    } else if (log_units == 'KPH') {
+      df = df[df$speed > 5,]
+    }
   }
   
   # scale load if expressed as percent
@@ -107,14 +115,14 @@ interp_scale_filter <- function(df, log_units) {
     df = df[seq(1,nr,2),]
   }
   
-  if ('gear' %in% colnames(df)) {
-    if ((min(df$gear) >= 1) & (max(df$gear <= 10))) {
-      df$gear = round(df$gear)
+  if ('gear' %in% colnames(df) & (min(df$gear) >= 1) & (max(df$gear <= 10))) {
+    df$gear = round(df$gear)
+  } else {
+    if (max(df$speed) == 0) {
+      df$gear = 1
     } else {
       df$gear = deduce_gear(df$speed, df$rpm)
     }
-  } else {
-    df$gear = deduce_gear(df$speed, df$rpm)
   }
   
   return(df)

@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 8-Sep-2024*')
+                markdown('#### *App last updated 17-Dec-2024*')
         )
       )
     )
@@ -261,6 +261,8 @@ shinyApp(
       # drop rows in which our columns of interest are all blank
       if (length(ii) == length(pids)) {
         df = df[!(is.na(df$gear) & is.na(df$rpm) & is.na(df$speed) & is.na(df$pedal) & is.na(df$load)),]
+        # drop transmission gear column if it's bad data
+        if (sum(is.na(df$gear)) == length(df$gear)) df = df[,-2]
       } else {
         df = df[!(is.na(df$rpm) & is.na(df$speed) & is.na(df$pedal) & is.na(df$load)),]
       }
