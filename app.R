@@ -1,9 +1,9 @@
 # Max upload size in megabytes
-max_upload_size_mb = 200
+max_upload_size_mb = 200 #85
 
 # Parameter IDs to search for in CSV log to extract required data
 pids = list(
-  gear = c(4120, 14100),
+  gear = c(14100, 4120),
   rpm = c(12, 2135),
   speed = c(13),
   pedal = c(2114, 2115, 2116, 2117, 73, 74),
@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 17-Dec-2024*')
+                markdown('#### *App last updated 27-Dec-2024*')
         )
       )
     )
@@ -266,6 +266,9 @@ shinyApp(
       } else {
         df = df[!(is.na(df$rpm) & is.na(df$speed) & is.na(df$pedal) & is.na(df$load)),]
       }
+      
+      # save(df, file='debug1.RData')
+      return(df)
     })
     
     # determine logged frequency of pedal and load
@@ -308,6 +311,9 @@ shinyApp(
       validate(need(max(log_df_0()$pedal, na.rm=TRUE) <= 100,
                     'ERROR: Pedal values exceed 100. Check accuracy of CSV export.'))
       
+      # test = log_df_0()
+      # save(test, file='debug2.RData')
+      
       # interpolate gaps, scale values, and filter data
       df = interp_scale_filter(log_df_0(), input$log_units)
       validate(need(nrow(df) > 0,
@@ -315,6 +321,8 @@ shinyApp(
       
       # create pedal & speed bins and gear weights
       df = calc_bins_and_weights(df, input$log_units, dd_units(), pedal_breaks(), speed_bins())
+      
+      return(df)
     })
     
     # number of gears
