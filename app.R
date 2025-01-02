@@ -64,7 +64,7 @@ shinyApp(
                            fluidRow(
                              column(9, textAreaInput('dd_in', 'Paste Driver Demand table *with axes* here', width='100%', rows=7)),
                              column(3, radioButtons('dd_units', 'DD Speed Units',
-                                           choices=c('KPH', 'MPH'), selected='KPH'))
+                                           choices=c('KPH', 'MPH', 'RPM'), selected='KPH'))
                            )
                     ),
                   ),
@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 27-Dec-2024*')
+                markdown('#### *App last updated 30-Dec-2024*')
         )
       )
     )
