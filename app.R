@@ -140,16 +140,16 @@ shinyApp(
                 markdown('#### Driver Demand Editor is applicable to Gen 5 GM vehicles that use a two-dimensional table for drive-by-wire throttle mapping with these characteristics:'),
                 markdown('- rows indexed by accelerator pedal percent'),
                 markdown('- columns indexed by vehicle speed -OR- engine RPM'),
-                markdown('- cell values representing torque requested'),
+                markdown('- cell values representing torque requested (engine or axle)'),
                 fluidRow(
                   column(2, markdown('#### Example:')),
                   column(10, tags$img(src = "dd.png", width="600"))
                 ),
                 markdown('#### This app generates Engine Load vs. Pedal Position curves from the logged data for each DD table column, and automatically calculates corrections by comparing these curves against a user-selectable ideal curve. Since this relies on load calculations, you should first make sure your MAF, VE, and torque model are in good shape.'),
                 markdown('### Data Logging'),
-                markdown('#### 1. Try to populate as much of the DD pedal-speed matrix as possible by varying not only pedal position and vehicle speed, but also transmission gear and engine RPM.'),
-                markdown('#### 2. Ideally, try to limit the drive to mostly flat roads (driving uphill skews engine load high, and driving downhill skews engine load low).'),
-                markdown('#### 3. This app automatically filters the log to only include observations with increasing accelerator pedal position, so cruising at steady state for extended periods is not beneficial.'),
+                markdown('- Best Practice: perform a series of smooth throttle roll-ons in different gears and RPM ranges to fill in as much of the driver demand pedal-vs-speed matrix as possible.'),
+                markdown('- Cruising at steady throttle for extended periods is not beneficial, and doing full WOT pulls as if you\'re on a dyno isn\'t particularly beneficial either, so aim for something in between.'),
+                markdown('- Ideally, try to limit the drive to mostly flat roads (driving uphill skews engine load high, and driving downhill skews engine load low).'),
                 markdown("#### After logging, from within VCM Scanner click 'Log File' > 'Export Log File', then export entire log as CSV, and **disable interpolation of data gaps**. This is the file format you must upload to this app."),
                 markdown('### Required Parameters'),
                 markdown('#### The log file MUST include these five parameters, plus the \'Offset\' column that VCM Scanner automatically records:'),
@@ -162,7 +162,7 @@ shinyApp(
                 markdown('#### https://youtu.be/GWhjPFLw89Y'),
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 30-Dec-2024*')
+                markdown('#### *App last updated 13-Feb-2025*')
         )
       )
     )
