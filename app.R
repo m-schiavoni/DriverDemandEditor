@@ -148,7 +148,7 @@ shinyApp(
                 markdown('#### This app generates Engine Load vs. Pedal Position curves from the logged data for each DD table column, and automatically calculates corrections by comparing these curves against a user-selectable ideal curve. Since this relies on load calculations, you should first make sure your MAF, VE, and torque model are in good shape.'),
                 markdown('### Data Logging'),
                 markdown('- Best Practice: perform a series of smooth throttle roll-ons in different gears and RPM ranges to fill in as much of the driver demand pedal-vs-speed matrix as possible.'),
-                markdown('- Cruising at steady throttle for extended periods is not beneficial, and doing full WOT pulls as if you\'re on a dyno isn\'t particularly beneficial either, so aim for something in between.'),
+                markdown('- Cruising at steady throttle for extended periods is not beneficial, and neither is doing full WOT pulls as if you\'re on a dyno, so instead aim for something in between.'),
                 markdown('- Ideally, try to limit the drive to mostly flat roads (driving uphill skews engine load high, and driving downhill skews engine load low).'),
                 markdown("#### After logging, from within VCM Scanner click 'Log File' > 'Export Log File', then export entire log as CSV, and **disable interpolation of data gaps**. This is the file format you must upload to this app."),
                 markdown('### Required Parameters'),
