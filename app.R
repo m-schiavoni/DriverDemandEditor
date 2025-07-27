@@ -35,7 +35,8 @@ shinyApp(
         menuItem("Inputs", tabName = "Inputs", icon = icon("open", lib = "glyphicon")),
         menuItem("Load vs Pedal", tabName = "Load-Pedal", icon = icon("chart-line")),
         menuItem("Results", tabName = "Results", icon = icon("equalizer", lib="glyphicon")),
-        menuItem("Documentation", tabName = "Documentation", icon = icon("book"))
+        menuItem("Documentation", tabName = "Documentation", icon = icon("book")),
+        menuItem("Wizard", tabName = "Wizard", icon = icon("flash", lib = "glyphicon"))
       )
     ),
     body = dashboardBody(
@@ -64,9 +65,9 @@ shinyApp(
                            fluidRow(
                              column(9, textAreaInput('dd_in', 'Paste Driver Demand table *with axes* here', width='100%', rows=7)),
                              column(3, radioButtons('dd_units', 'DD Speed Units',
-                                           choices=c('KPH', 'MPH', 'RPM'), selected='KPH'))
+                                                    choices=c('KPH', 'MPH', 'RPM'), selected='KPH'))
                            )
-                    ),
+                    )
                   ),
                   width=12
                 ),
@@ -163,14 +164,34 @@ shinyApp(
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
                 markdown('#### *App last updated 13-Feb-2025*')
+        ),
+        tabItem(tabName = "Wizard",
+                markdown('#### This extra "wizard" feature can be used to increment or decrement a Load-Pedal curve to a different profile than originally selected.'),
+                markdown('#### It is only intended to be used on a Driver Demand table that has already been tuned using the main functionality of this app.'),
+                box(
+                  fluidRow(
+                    column(5, textAreaInput('wiz_in', 'Paste your current tuned Driver Demand table *with axes* here', width='100%', rows=17)),
+                    column(2, 
+                           fluidRow(
+                             radioButtons('wiz_inc', 'Select Profile Increment', choices = c('+2', '+1', '0', '-1', '-2'), selected = '0'),
+                             radioButtons('extras', 'Additional Edits', choices = c('None', 'Winter Mode', 'Reduced Power Mode')),
+                             markdown('*Winter Mode reduces torque at low vehicle speeds.*'),
+                             markdown('*Reduced Power Mode reduces torque at high pedal values.*')
+                           )
+                    ),
+                    column(5, plotOutput('wiz_plot', height='400px', width='400px'))
+                  ),
+                  width=12
+                ),
+                DTOutput('wiz_table_out'),
         )
       )
     )
   ),
-
-################################################################################
-## SHINY SERVER
-################################################################################
+  
+  ################################################################################
+  ## SHINY SERVER
+  ################################################################################
   server = function(input, output, session) {
     # closing window also terminates app gracefully
     session$onSessionEnded(function(){stopApp()})
@@ -275,7 +296,7 @@ shinyApp(
     freqs <- reactive({calc_freqs(log_df_0()[,c('time','pedal','load')])})
     output$freq_table <- renderDT(datatable(freqs(),
                                             options = list(dom='tB', ordering=FALSE, pageLength=2, buttons=FALSE)) %>%
-                                            formatRound(columns=1, digits=1))
+                                    formatRound(columns=1, digits=1))
     output$freq_msg <- renderUI({
       if (anyNA(freqs())) {
         markdown("*Unable to determine logged frequency because data gaps have been interpolated.*")
@@ -392,10 +413,10 @@ shinyApp(
       if (dd_units() == 'RPM') {
         ii = which(speed_bins() <= 1500)
         target_mat[,ii] = target_mat[,ii]*profile_df()$mult
-        ii = which(speed_bins() <= 1000)
-        target_mat[,ii] = target_mat[,ii]*profile_df()$mult
+        #ii = which(speed_bins() <= 1000)
+        #target_mat[,ii] = target_mat[,ii]*profile_df()$mult
       } else {
-        target_mat[,1] = target_mat[,1]*profile_df()$mult^2
+        target_mat[,1] = target_mat[,1]*profile_df()$mult #^2
         target_mat[,2] = target_mat[,2]*profile_df()$mult
       }
       target_mat[target_mat > 100] = 100
@@ -473,6 +494,63 @@ shinyApp(
     output$channels <- downloadHandler(filename = "DriverDemand.Channels.xml",
                                        content = function(file){write.table(channels, file, quote=FALSE,
                                                                             row.names=FALSE, col.names=FALSE)}
+    )
+    
+    # load wiz dd table
+    wiz_df <- reactive({
+      validate(need(input$wiz_in != "", 'Paste DD table with axes'))
+      wiz_df = read.delim(text=input$wiz_in, header=FALSE)
+      if (wiz_df[nrow(wiz_df),1] == '%') wiz_df = wiz_df[1:(nrow(wiz_df)-1),]
+      if (is.na(wiz_df[1,ncol(wiz_df)])) wiz_df = wiz_df[,1:(ncol(wiz_df)-1)]
+      validate(need(!any(is.na(wiz_df)), 'ERROR: missing values detected. Copy DD table from your tune - NOT your log'))
+      validate(need(min(dim(wiz_df)) >= 14, 'DD table read error'))
+      return(wiz_df)
+    })
+    wiz_pedal_bins <- reactive({as.numeric(wiz_df()[-1,1])})
+    wiz_n_pedal <- reactive({length(wiz_pedal_bins())})
+    wiz_speed_bins <- reactive({as.numeric(wiz_df()[1,-1])})
+    wiz_n_speed <- reactive({length(wiz_speed_bins())})
+    
+    # create wiz_mat object
+    wiz_mat <- reactive({
+      wiz_mat = as.matrix(wiz_df()[2:(wiz_n_pedal()+1), 2:(wiz_n_speed()+1)])
+      rownames(wiz_mat) = paste0('p_', wiz_pedal_bins())
+      colnames(wiz_mat) = paste0('s_', wiz_speed_bins())
+      return(wiz_mat)
+    })
+    
+    # create target profile dataframe
+    wiz_profile_df <- reactive({
+      df = ideal[which(ideal$x %in% wiz_pedal_bins()),]
+      min_load = 10
+      df[,1:5] = df[,1:5]*(100-min_load)/100 + min_load
+      df[,1:5] = round(df[,1:5], 2)
+      return(df)
+    })
+    
+    # plot wiz profiles
+    output$wiz_plot <- renderPlot({wiz_plot(wiz_profile_df(), input$wiz_inc)})
+    
+    # calculate new wiz dd table
+    wiz_out <- reactive({
+      calc_wiz_dd(wiz_mat(), wiz_profile_df()$mult, wiz_n_pedal(), wiz_n_speed(),
+                  input$wiz_inc, input$extras)
+    })
+    
+    # calculate wiz delta table
+    wiz_delta <- reactive({wiz_out() - wiz_mat()})
+    
+    # calculate wiz delta bound
+    wiz_bound <- reactive({max(abs(range(wiz_delta())))})
+    
+    output$wiz_table_out = renderDT(
+      datatable(wiz_delta(), extensions = 'Buttons',
+                options = list(dom='tB', ordering=FALSE, pageLength=wiz_n_pedal(), buttons='csv')) %>%
+        formatRound(columns=1:wiz_n_speed(), digits=1) %>%
+        formatStyle(columns=1:wiz_n_speed(),
+                    backgroundColor=styleInterval(seq(-wiz_bound(), wiz_bound(), length.out=80),
+                                                  colorRampPalette(c('red3','red','orange','yellow2','white',
+                                                                     'dodgerblue','turquoise2','green2','green4'))(81)))
     )
   }
 )

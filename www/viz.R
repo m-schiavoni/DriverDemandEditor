@@ -145,3 +145,18 @@ plot_speed_1d <- function(dd_out_final, speed_slider, speed_bins, pedal_bins, dd
   lines(pedal_bins, dd_out_final[,speed_slider])
   abline(h=0, lty=2)
 }
+
+wiz_plot <- function(profile_df, wiz_inc){
+  par(mar=c(2.5,2.5,3.5,1.5))
+  plot(c(0:100), c(0:100), xaxt='n', yaxt='n', xlab='', ylab='', las=1, asp=1)
+  mtext('Pedal %', side=1, line=1)
+  mtext('Engine Load %', side=2, line=1)
+  mtext('Current vs. New Curve (notional)', side=3, line=1.25, cex=1.2, font=2)
+  rect(par('usr')[1], par('usr')[3], par('usr')[2], par('usr')[4], col='grey80')
+  grid(col='white', lty=1)
+  cols = c('red', 'black')
+  wiz_inc = as.numeric(wiz_inc) + 3
+  lines(profile_df$x, profile_df[,wiz_inc], lwd=2, col=cols[1])
+  lines(profile_df$x, profile_df[,3], lwd=2, lty=2, col=cols[2])
+  legend('topleft', inset=0.04, col=rev(cols), legend=c('Current', 'New'), lty=c(2,1), lwd=2)
+}

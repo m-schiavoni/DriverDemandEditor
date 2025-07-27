@@ -322,3 +322,53 @@ finalize_dd <- function(dd, decel_mult, max_speed, pedal_bins, speed_bins){
   
   return(dd)
 }
+
+calc_wiz_dd <- function(wiz_mat, mult_vec, n_pedal, n_speed, wiz_inc, extras){
+  if ((wiz_inc == '0') & (extras == 'None')) {
+    return(wiz_mat)
+  } else {
+    wiz_inc = as.numeric(wiz_inc)
+    mult_vec = mult_vec^wiz_inc
+    mult = wiz_mat*0 + mult_vec
+    
+    if (!is.null(extras)) {
+      if (extras == 'Winter Mode') {
+        # reduce power at low speeds
+        mult[,1] = 0.7 *mult[,1]
+        mult[,2] = 0.8 *mult[,2]
+        mult[,3] = 0.8 *mult[,3]
+        mult[,4] = 0.85*mult[,4]
+        mult[,5] = 0.9 *mult[,5]
+        
+        # maintain power at WOT
+        mult[n_pedal,] = 1
+        mult[n_pedal-1,] = 0.8 *mult[n_pedal-1,]
+        mult[n_pedal-2,] = 0.85*mult[n_pedal-2,]
+        
+        # reduce deceleration
+        #ii = which(wiz_mat <= 0)
+        #wiz_mat[ii] = 0.8*wiz_mat[ii]
+      } else if (extras == 'Reduced Power Mode') {
+        mult[n_pedal,]   = 0.8*mult[n_pedal,]
+        mult[n_pedal-1,] = 0.7*mult[n_pedal-1,]
+        mult[n_pedal-2,] = 0.8*mult[n_pedal-2,]
+        mult[n_pedal-3,] = 0.9*mult[n_pedal-3,]
+      }
+    }
+    
+    # calculate output matrix
+    mult[which(wiz_mat <= 0)] = 1
+    wiz_out = wiz_mat*mult
+    
+    # interpolate negatives
+    wiz_out = apply(wiz_out, 2, interp_negs)
+    
+    # round
+    wiz_out = round(wiz_out, 1)
+    
+    # ensure all columns are increasing
+    wiz_out = apply(wiz_out, 2, sort)
+    
+    return(wiz_out)
+  }
+}
