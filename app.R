@@ -45,7 +45,14 @@ shinyApp(
         tabItem(tabName = "Disclaimer",
                 markdown('### >>> *This free tool is for educational purposes only.* <<<'),
                 markdown('#### By proceeding, you accept all responsibility for how you utilize it.'),
-                markdown('#### The app developer is not liable for any potential loss or damage resulting from its use or associated data logging.')
+                markdown('#### The app developer is not liable for any potential loss or damage resulting from its use or associated data logging.'),
+                hr(),
+                markdown('### Video Walk-Through'),
+                markdown('#### https://youtu.be/GWhjPFLw89Y'),
+                markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
+                markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
+                hr(),
+                markdown('#### *App last updated 27-Jul-2025*')
         ),
         tabItem(tabName = "Inputs",
                 box(
@@ -119,12 +126,17 @@ shinyApp(
         tabItem(tabName = 'Results',
                 fluidRow(
                   column(6, sliderInput('decel_mult', 'Deceleration Multiplier',
-                                        min=1, max=1.4, value=1, step=0.05)),
+                                        min=0.8, max=1.2, value=1, step=0.1)),
                   column(6, uiOutput('max_speed'))
                 ),
                 markdown('*This app will NOT increase your maximum torque value.*'),
                 DTOutput('table_out'),
-                markdown('#### <span style="color:blue">Click the \'CSV\' button directly above this to download results. Then paste into HP Tuners and fine-tune based on 1-D profile views.</span>'),
+                hr(),
+                fluidRow(
+                  column(3, downloadButton('csv_download', label='CSV Download (America)', class='btn-primary', style='color: white')),
+                  column(3, downloadButton('tsv_download', label='TSV Download (International)'))
+                ),
+                markdown('#### <span style="color:blue">Click one of the buttons above to download results. Then paste into HP Tuners, and fine-tune based on 1-D profile views.</span>'),
                 markdown(' '),
                 markdown('### 1-dimensional profile views'),
                 fluidRow(
@@ -158,31 +170,37 @@ shinyApp(
                 markdown('- Engine RPM [12 or 2135]'),
                 markdown('- Calculated Engine Load [4]'),
                 markdown('- Accelerator Pedal Position [2114]  *(but will also accept 2115, 2116, 2117, 73, or 74)*'),
-                markdown('- Transmission Current Gear [4120 or 14100]  *(but will be heuristically deduced from Speed/RPM ratio if missing)*'),
-                markdown('### Video Walk-Through'),
-                markdown('#### https://youtu.be/GWhjPFLw89Y'),
-                markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
-                markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
-                markdown('#### *App last updated 13-Feb-2025*')
+                markdown('- Transmission Current Gear [4120 or 14100]  *(but will be heuristically deduced from Speed/RPM ratio if missing)*')
         ),
         tabItem(tabName = "Wizard",
                 markdown('#### This extra "wizard" feature can be used to increment or decrement a Load-Pedal curve to a different profile than originally selected.'),
                 markdown('#### It is only intended to be used on a Driver Demand table that has already been tuned using the main functionality of this app.'),
+                hr(),
                 box(
                   fluidRow(
-                    column(5, textAreaInput('wiz_in', 'Paste your current tuned Driver Demand table *with axes* here', width='100%', rows=17)),
+                    column(5, textAreaInput('wiz_in', 'Paste your current tuned Driver Demand table *with axes* here', width='100%', rows=20)),
                     column(2, 
                            fluidRow(
-                             radioButtons('wiz_inc', 'Select Profile Increment', choices = c('+2', '+1', '0', '-1', '-2'), selected = '0'),
-                             radioButtons('extras', 'Additional Edits', choices = c('None', 'Winter Mode', 'Reduced Power Mode')),
-                             markdown('*Winter Mode reduces torque at low vehicle speeds.*'),
-                             markdown('*Reduced Power Mode reduces torque at high pedal values.*')
+                             radioButtons('wiz_inc', 'Select Profile Increment',
+                                          choices = c('+2', '+1', '0', '-1', '-2'), selected = '0'),
+                             radioButtons('extras', 'Additional Edits',
+                                          choices = c('None', 'Winter Mode', 'Reduced Power Mode')),
+                             markdown('*Winter Mode limits torque at low vehicle speeds. Reduced Power limits maximum demanded torque.*'),
+                             sliderInput('wiz_decel', 'Deceleration Multiplier',
+                                         min=0.8, max=1.2, value=1, step=0.1)
                            )
                     ),
                     column(5, plotOutput('wiz_plot', height='400px', width='400px'))
                   ),
                   width=12
                 ),
+                fluidRow(
+                  column(3, downloadButton('wiz_csv', label='CSV Download (America)', class='btn-primary', style='color: white')),
+                  column(3, downloadButton('wiz_tsv', label='TSV Download (International)')
+                  )
+                ),
+                hr(),
+                markdown('#### Changes to driver demand table shown below:'),
                 DTOutput('wiz_table_out'),
         )
       )
@@ -458,6 +476,17 @@ shinyApp(
       finalize_dd(dd_out_smooth(), input$decel_mult, input$max_speed, pedal_bins(), speed_bins())
     })
     
+    # CSV download
+    output$csv_download = downloadHandler(
+      filename = function() {'DD_Editor_output.csv'},
+      content = function(file) {write.csv(dd_out_final(), file)}
+    )
+    # TSV download
+    output$tsv_download = downloadHandler(
+      filename = function() {'DD_Editor_output.tsv'},
+      content = function(file) {write.table(dd_out_final(), file, sep="\t")}
+    )
+    
     # calculate range of output DD table
     range_out <- reactive({range(dd_out_final())})
     
@@ -480,8 +509,8 @@ shinyApp(
     })
     
     output$table_out = renderDT(
-      datatable(dd_out_final(), extensions = 'Buttons',
-                options = list(dom='tB', ordering=FALSE, pageLength=n_pedal(), buttons='csv')) %>%
+      datatable(dd_out_final(),
+                options = list(dom='t', ordering=FALSE, pageLength=n_pedal())) %>%
         formatRound(columns=1:n_speed(), digits=1) %>%
         formatStyle(columns=1:n_speed(),
                     backgroundColor=styleInterval(seq(range_out()[1], range_out()[2], length.out=110),
@@ -534,8 +563,26 @@ shinyApp(
     # calculate new wiz dd table
     wiz_out <- reactive({
       calc_wiz_dd(wiz_mat(), wiz_profile_df()$mult, wiz_n_pedal(), wiz_n_speed(),
-                  input$wiz_inc, input$extras)
+                  input$wiz_inc, input$extras, input$wiz_decel)
     })
+    
+    # download new wiz dd table
+    output$wiz_csv = downloadHandler(
+      filename = function() {
+        paste('DD_wiz', input$wiz_inc, input$extras, input$wiz_decel, '.csv')
+      },
+      content = function(file) {
+        write.csv(wiz_out(), file)
+      }
+    )
+    output$wiz_tsv = downloadHandler(
+      filename = function() {
+        paste('DD_wiz', input$wiz_inc, input$extras, input$wiz_decel, '.tsv')
+      },
+      content = function(file) {
+        write.table(wiz_out(), file, sep="\t")
+      }
+    )
     
     # calculate wiz delta table
     wiz_delta <- reactive({wiz_out() - wiz_mat()})
@@ -544,8 +591,8 @@ shinyApp(
     wiz_bound <- reactive({max(abs(range(wiz_delta())))})
     
     output$wiz_table_out = renderDT(
-      datatable(wiz_delta(), extensions = 'Buttons',
-                options = list(dom='tB', ordering=FALSE, pageLength=wiz_n_pedal(), buttons='csv')) %>%
+      datatable(wiz_delta(),
+                options = list(dom='t', ordering=FALSE, pageLength=wiz_n_pedal())) %>%
         formatRound(columns=1:wiz_n_speed(), digits=1) %>%
         formatStyle(columns=1:wiz_n_speed(),
                     backgroundColor=styleInterval(seq(-wiz_bound(), wiz_bound(), length.out=80),
