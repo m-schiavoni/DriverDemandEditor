@@ -324,14 +324,14 @@ finalize_dd <- function(dd, decel_mult, max_speed, pedal_bins, speed_bins){
 }
 
 calc_wiz_dd <- function(wiz_mat, mult_vec, n_pedal, n_speed, wiz_inc, extras, decel){
-  if ((wiz_inc == '0') & (extras == 'None') & (decel == 1)) {
+  wiz_inc = as.numeric(wiz_inc)
+  if ((wiz_inc == 0) & (extras == 'None') & (decel == 1)) {
     return(wiz_mat)
   } else {
-    wiz_inc = as.numeric(wiz_inc)
-    mult_vec = mult_vec^wiz_inc
-    mult = wiz_mat*0 + mult_vec
-    
+    mult = wiz_mat*0 + 1
     if (extras == 'Winter Mode') {
+      wiz_inc = min(wiz_inc, 0)
+      
       # reduce power at low speeds
       mult[,1] = 0.7 *mult[,1]
       mult[,2] = 0.8 *mult[,2]
@@ -344,13 +344,19 @@ calc_wiz_dd <- function(wiz_mat, mult_vec, n_pedal, n_speed, wiz_inc, extras, de
       mult[n_pedal-1,] = 0.8 *mult[n_pedal-1,]
       mult[n_pedal-2,] = 0.85*mult[n_pedal-2,]
     } else if (extras == 'Reduced Power Mode') {
+      wiz_inc = min(wiz_inc, 0)
+      
       mult[n_pedal,]   = 0.8*mult[n_pedal,]
       mult[n_pedal-1,] = 0.7*mult[n_pedal-1,]
       mult[n_pedal-2,] = 0.8*mult[n_pedal-2,]
       mult[n_pedal-3,] = 0.9*mult[n_pedal-3,]
     }
     
+    # apply increment
+    mult2 = wiz_mat*0 + mult_vec^(wiz_inc*1.5)
+    
     # calculate output matrix
+    mult = mult * mult2
     mult[which(wiz_mat <= 0)] = decel
     wiz_out = wiz_mat*mult
     
