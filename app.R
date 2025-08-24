@@ -35,8 +35,8 @@ shinyApp(
         menuItem("Inputs", tabName = "Inputs", icon = icon("open", lib = "glyphicon")),
         menuItem("Load vs Pedal", tabName = "Load-Pedal", icon = icon("chart-line")),
         menuItem("Results", tabName = "Results", icon = icon("equalizer", lib="glyphicon")),
-        menuItem("Documentation", tabName = "Documentation", icon = icon("book")),
-        menuItem("Wizard", tabName = "Wizard", icon = icon("flash", lib = "glyphicon"))
+        menuItem("Documentation", tabName = "Documentation", icon = icon("book"))#,
+        #menuItem("Wizard", tabName = "Wizard", icon = icon("flash", lib = "glyphicon"))
       )
     ),
     body = dashboardBody(
@@ -52,7 +52,7 @@ shinyApp(
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
                 hr(),
-                markdown('#### *App last updated 27-Jul-2025*')
+                markdown('#### *App last updated 24-Aug-2025*')
         ),
         tabItem(tabName = "Inputs",
                 box(
@@ -171,38 +171,38 @@ shinyApp(
                 markdown('- Calculated Engine Load [4]'),
                 markdown('- Accelerator Pedal Position [2114]  *(but will also accept 2115, 2116, 2117, 73, or 74)*'),
                 markdown('- Transmission Current Gear [4120 or 14100]  *(but will be heuristically deduced from Speed/RPM ratio if missing)*')
-        ),
-        tabItem(tabName = "Wizard",
-                markdown('#### This extra "wizard" feature can be used to increment or decrement a Load-Pedal curve to a different profile than originally selected.'),
-                markdown('#### It is only intended to be used on a Driver Demand table that has already been tuned using the main functionality of this app.'),
-                hr(),
-                box(
-                  fluidRow(
-                    column(5, textAreaInput('wiz_in', 'Paste your current tuned Driver Demand table *with axes* here', width='100%', rows=20)),
-                    column(2, 
-                           fluidRow(
-                             radioButtons('wiz_inc', 'Select Profile Increment',
-                                          choices = c('+2', '+1', '0', '-1', '-2'), selected = '0'),
-                             radioButtons('extras', 'Additional Edits',
-                                          choices = c('None', 'Winter Mode', 'Reduced Power Mode')),
-                             markdown('*Winter Mode limits torque at low vehicle speeds. Reduced Power limits maximum demanded torque.*'),
-                             sliderInput('wiz_decel', 'Deceleration Multiplier',
-                                         min=0.8, max=1.2, value=1, step=0.1)
-                           )
-                    ),
-                    column(5, plotOutput('wiz_plot', height='400px', width='400px'))
-                  ),
-                  width=12
-                ),
-                fluidRow(
-                  column(3, downloadButton('wiz_csv', label='CSV Download (America)', class='btn-primary', style='color: white')),
-                  column(3, downloadButton('wiz_tsv', label='TSV Download (International)')
-                  )
-                ),
-                hr(),
-                markdown('#### Changes to driver demand table shown below:'),
-                DTOutput('wiz_table_out'),
-        )
+        )#,
+        # tabItem(tabName = "Wizard",
+        #         markdown('#### This extra "wizard" feature can be used to increment or decrement a Load-Pedal curve to a different profile than originally selected.'),
+        #         markdown('#### It is only intended to be used on a Driver Demand table that has already been tuned using the main functionality of this app.'),
+        #         hr(),
+        #         box(
+        #           fluidRow(
+        #             column(5, textAreaInput('wiz_in', 'Paste your current tuned Driver Demand table *with axes* here', width='100%', rows=20)),
+        #             column(2, 
+        #                    fluidRow(
+        #                      radioButtons('wiz_inc', 'Select Profile Increment',
+        #                                   choices = c('+2', '+1', '0', '-1', '-2'), selected = '0'),
+        #                      radioButtons('extras', 'Additional Edits',
+        #                                   choices = c('None', 'Winter Mode', 'Reduced Power Mode')),
+        #                      markdown('*Winter Mode limits torque at low vehicle speeds. Reduced Power limits maximum demanded torque.*'),
+        #                      sliderInput('wiz_decel', 'Deceleration Multiplier',
+        #                                  min=0.8, max=1.2, value=1, step=0.1)
+        #                    )
+        #             ),
+        #             column(5, plotOutput('wiz_plot', height='400px', width='400px'))
+        #           ),
+        #           width=12
+        #         ),
+        #         fluidRow(
+        #           column(3, downloadButton('wiz_csv', label='CSV Download (America)', class='btn-primary', style='color: white')),
+        #           column(3, downloadButton('wiz_tsv', label='TSV Download (International)')
+        #           )
+        #         ),
+        #         hr(),
+        #         markdown('#### Changes to driver demand table shown below:'),
+        #         DTOutput('wiz_table_out'),
+        # )
       )
     )
   ),
@@ -261,8 +261,10 @@ shinyApp(
       validate(need(num_files() > 0, 'Upload data log'))
       log_list = list()
       for (i in 1:num_files()) {
-        df = read.csv(input$log_in[[i,'datapath']], header=FALSE, skip=14, quote="")
-        log_list[[i]] = df[-(2:5),]
+        head_lines = readLines(input$log_in[[i,'datapath']], n=30)
+        n_skip = grep("Channel Information", head_lines)
+        df = read.csv(input$log_in[[i,'datapath']], header=FALSE, skip=n_skip, quote="")
+        log_list[[i]] = df[-(2:6),]
       }
       return(log_list)
     })
