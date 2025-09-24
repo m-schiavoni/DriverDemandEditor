@@ -1,5 +1,5 @@
 # Max upload size in megabytes
-max_upload_size_mb = 85 #200
+max_upload_size_mb = 200 #85
 
 # Parameter IDs to search for in CSV log to extract required data
 pids = list(
@@ -52,7 +52,7 @@ shinyApp(
                 markdown('### Discussion thread for Q&A, Bug Reports, and Feature Requests'),
                 markdown('#### https://forum.hptuners.com/showthread.php?107808-Driver-Demand-Editor-new-tool-for-tuning-DBW-throttle-mapping'),
                 hr(),
-                markdown('#### *App last updated 24-Aug-2025*')
+                markdown('#### *App last updated 23-Sep-2025*')
         ),
         tabItem(tabName = "Inputs",
                 box(
@@ -64,7 +64,7 @@ shinyApp(
                                                     choices=c('KPH', 'MPH'), selected='MPH'))
                            ),
                            fluidRow(
-                             column(12, markdown('*Max upload size is **85 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
+                             column(12, markdown('*Max upload size is **200 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
                              column(12, markdown('*If you still have problems, delete some unnecessary columns from the file to reduce its size. Required columns are listed in the Documentation tab.*'))
                            )
                     ),
