@@ -54,16 +54,16 @@ profile_plot <- function(pedal_bins, profile_df, profile_vec){
   plot(c(0:100), c(0:100), xlab='Pedal %', ylab='Engine Load %', las=1, asp=1)
   rect(par('usr')[1], par('usr')[3], par('usr')[2], par('usr')[4], col='grey80')
   grid(col='white', lty=1)
-  cols = c('black', 'green3', 'purple2', 'orange2', 'turquoise3', 'red2')
-  for (i in 5:1) lines(profile_df$x, profile_df[,i], lwd=2, col=cols[i+1])
+  cols = c('black', 'purple2', 'orange2', 'turquoise3', 'red2')
+  for (i in 5:2) lines(profile_df$x, profile_df[,i], lwd=2, col=cols[i])
   if (length(profile_vec) > 1) {
     # if (!is.na(profile_vec)) {
     points(pedal_bins, profile_vec, pch=0, cex=1.2)
     lines(pedal_bins, profile_vec, lty=2)
   }
   legend('bottomright', inset=0.04, col=rev(cols),
-         legend=c('Extreme', 'Peppy', 'Default', 'Progressive', 'Linear', 'Selected'),
-         lty=c(1,1,1,1,1,2), lwd=c(2,2,2,2,2,1), pch=c(NA,NA,NA,NA,NA,0), pt.cex=c(NA,NA,NA,NA,NA,1.1))
+         legend=c('Extreme', 'Peppy', 'Default', 'Progressive', 'Selected'),
+         lty=c(1,1,1,1,2), lwd=c(2,2,2,2,1), pch=c(NA,NA,NA,NA,0), pt.cex=c(NA,NA,NA,NA,1.1))
 }
 
 plot_load_by_speed <- function(df, load_mat, target_mat, speed_breaks, speed_bins, pedal_bins, n_gear, dd_units){

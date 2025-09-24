@@ -1,5 +1,5 @@
 # Max upload size in megabytes
-max_upload_size_mb = 200 #85
+max_upload_size_mb = 85 #200
 
 # Parameter IDs to search for in CSV log to extract required data
 pids = list(
@@ -64,7 +64,7 @@ shinyApp(
                                                     choices=c('KPH', 'MPH'), selected='MPH'))
                            ),
                            fluidRow(
-                             column(12, markdown('*Max upload size is **200 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
+                             column(12, markdown('*Max upload size is **85 MB**. Be sure to UN-CHECK the "Interpolate Data Gaps" setting when exporting from VCM Scanner.*')),
                              column(12, markdown('*If you still have problems, delete some unnecessary columns from the file to reduce its size. Required columns are listed in the Documentation tab.*'))
                            )
                     ),
@@ -99,7 +99,6 @@ shinyApp(
                                                   'Peppy'='4',
                                                   'Default'='3',
                                                   'Progressive'='2',
-                                                  'Linear'='1',
                                                   'Custom'='Custom'),
                                       selected = '3')),
                   column(6, plotOutput('profile_plot', height='400px', width='400px'))
@@ -111,8 +110,7 @@ shinyApp(
                                                          choices = c('Extreme'='5',
                                                                      'Peppy'='4',
                                                                      'Default'='3',
-                                                                     'Progressive'='2',
-                                                                     'Linear'='1'),
+                                                                     'Progressive'='2'),
                                                          selected = '3')),
                                    column(6, uiOutput('custom_input')),
                                    column(2, textOutput('custom_msg')),
